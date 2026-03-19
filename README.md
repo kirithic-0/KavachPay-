@@ -23,16 +23,7 @@ The entire flow — detection, verification, payout — happens without the work
 
 ---
 
-## The Problem
 
-A Swiggy delivery partner in Bengaluru earns roughly ₹700–₹900 on a good working day. When heavy rain hits, that number goes to zero. Orders dry up, roads become dangerous, and the platform offers no protection.
-
-This is not rare. Indian metros see dozens of such disruption events every monsoon season — heavy rainfall, AQI spikes, sudden curfews. Workers lose 20–30% of their monthly income to events entirely outside their control, with no recourse and no safety net.
-
-Traditional insurance products are not designed for this. They require monthly premiums, lengthy claim processes, and proof of loss — all of which are misaligned with how gig workers actually earn and live.
-
-KavachPay is built from scratch around the gig worker's reality: weekly income, daily risk, and zero tolerance for paperwork.
----
 ## Example — A day in the life of a KavachPay worker
 
 <details>
@@ -56,7 +47,6 @@ KavachPay is built from scratch around the gig worker's reality: weekly income, 
 
 </details>
 
----
 
 It is a Wednesday morning in July. Karan taps **Start My Day** on KavachPay at 9:15 AM and heads out for his shift in Dharavi. By 1:30 PM, heavy rain begins battering the zone. Orders dry up, roads flood, and Karan pulls over. He has earned ₹610 so far — less than half of what a normal Wednesday brings him.
 
