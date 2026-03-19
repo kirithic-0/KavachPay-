@@ -32,7 +32,58 @@ This is not rare. Indian metros see dozens of such disruption events every monso
 Traditional insurance products are not designed for this. They require monthly premiums, lengthy claim processes, and proof of loss — all of which are misaligned with how gig workers actually earn and live.
 
 KavachPay is built from scratch around the gig worker's reality: weekly income, daily risk, and zero tolerance for paperwork.
+---
+## Example — A day in the life of a KavachPay worker
 
+<details>
+<summary>📋 Worker profile — Karan Mehta</summary>
+
+| Field | Details |
+|---|---|
+| **Name** | Karan Mehta |
+| **Age** | 24 |
+| **City** | Mumbai |
+| **Zone** | Dharavi |
+| **Platform** | Swiggy |
+| **Months active** | 11 months |
+| **Avg weekly income** | ₹4,200 |
+| **Usual working days** | Mon, Tue, Wed, Thu, Fri, Sat |
+| **KavachScore** | 810 — Green tier |
+| **Past claims** | 3 — all verified legitimate |
+| **Weekly premium** | ₹68 |
+| **Weekly coverage** | ₹2,730 |
+| **Referral** | Joined via referral — received one-time discount at signup |
+
+</details>
+
+---
+
+It is a Wednesday morning in July. Karan taps **Start My Day** on KavachPay at 9:15 AM and heads out for his shift in Dharavi. By 1:30 PM, heavy rain begins battering the zone. Orders dry up, roads flood, and Karan pulls over. He has earned ₹610 so far — less than half of what a normal Wednesday brings him.
+
+Here is what happens next.
+```mermaid
+graph TD
+    classDef user fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff;
+    classDef system fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff;
+    classDef ai fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff;
+    classDef outcome fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff;
+
+    A[Karan taps Start My Day at 9:15 AM]:::user --> B[KavachPay marks Karan as active in Dharavi zone]:::system
+    B --> C[Heavy rain hits Dharavi at 1:30 PM]:::system
+    C --> D[OpenWeatherMap API detects rainfall threshold crossed]:::system
+    D --> E[Disruption event created for Dharavi zone]:::system
+    E --> F[System checks — was Karan active and now idle?]:::ai
+    F --> G[Yes — Karan started his day and went inactive at 1:28 PM]:::system
+    G --> H[Fraud detection pipeline runs — 12 layers]:::ai
+    H --> I[14 other Dharavi workers also inactive — zone confirmed]:::system
+    I --> J{All checks passed?}:::ai
+    J -- Yes --> K[Claim auto-approved — Moderate severity]:::system
+    K --> L[₹1,774 transferred to Karan's UPI]:::outcome
+    L --> M[Notification — Stay safe, Karan. Your cover kicked in.]:::user
+    J -- No --> N[Claim flagged for manual review]:::system
+```
+
+Karan filed nothing. He made no call. By 1:52 PM — twenty-two minutes after the rain started — ₹1,774 was in his account. His KavachScore remains Green, his premium does not change, and he is covered again the following week for the same ₹68.
 ---
 ## Discussion Forums
 
