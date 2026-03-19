@@ -34,6 +34,56 @@ Traditional insurance products are not designed for this. They require monthly p
 KavachPay is built from scratch around the gig worker's reality: weekly income, daily risk, and zero tolerance for paperwork.
 
 ---
+## Discussion Forums
+
+KavachPay includes a lightweight community forum where delivery workers can post, communicate, and flag issues. Posts are tagged as either **General** (open discussion about gig work, zones, and platform updates) or **Issue** (specific problems like incorrect zone ratings or payment failures). Workers can like posts, and issue posts that cross a certain like threshold are automatically surfaced to moderators for manual review — turning individual complaints into collective evidence.
+
+We are sure that this is a great addition to kavach pay because the automated system can only detect what APIs can measure — discussion forums fill the gap by letting workers report ground-level problems that no weather feed will ever catch, like a misclassified zone or a silent payment failure affecting an entire area. It also builds trust with workers by giving them a visible voice in the platform, which directly improves retention and honest engagement with the KavachScore system.
+
+---
+
+### Forum flow
+```mermaid
+graph LR
+    classDef user fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff;
+    classDef mod fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff;
+    classDef system fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff;
+    classDef tag fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff;
+
+    A[Worker creates post]:::user --> B{Select tag}:::system
+    B --> C[General]:::tag
+    B --> D[Issue]:::tag
+    C --> E[Visible to all workers]:::system
+    D --> E
+    E --> F[Other workers like the post]:::user
+    F --> G{Issue post?}:::system
+    G -- No --> H[Stays in General feed]:::system
+    G -- Yes --> I{Like threshold reached?}:::system
+    I -- No --> J[Remains in Issue feed]:::system
+    I -- Yes --> K[Flagged for moderator review]:::mod
+    K --> L[Moderator evaluates]:::mod
+    L --> M[Action taken or escalated]:::mod
+```
+
+---
+
+### Moderation logic
+```mermaid
+graph TD
+    classDef system fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff;
+    classDef mod fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff;
+    classDef outcome fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff;
+
+    A[Issue post created]:::system --> B[Like count tracked in real time]:::system
+    B --> C{Likes cross threshold}:::system
+    C -- No --> B
+    C -- Yes --> D[Post auto-flagged in moderator dashboard]:::mod
+    D --> E[Moderator reviews post and zone data]:::mod
+    E --> F{Decision}:::mod
+    F -- Valid issue --> G[Zone data updated or escalated]:::outcome
+    F -- False report --> H[Post marked resolved, no action]:::outcome
+    F -- Needs more info --> I[Moderator replies on post]:::outcome
+```
 
 ## How It Works
 
