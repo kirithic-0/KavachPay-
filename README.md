@@ -63,10 +63,10 @@ It is a Wednesday morning in July. Karan taps **Start My Day** on KavachPay at 9
 Here is what happens next.
 ```mermaid
 graph TD
-    classDef user fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff;
-    classDef system fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff;
-    classDef ai fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff;
-    classDef outcome fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff;
+    classDef user fill:#0f172a,stroke:#1e40af,stroke-width:2px,color:#fff;
+    classDef system fill:#134e4a,stroke:#0f766e,stroke-width:2px,color:#fff;
+    classDef ai fill:#1e1b4b,stroke:#4338ca,stroke-width:2px,color:#fff;
+    classDef outcome fill:#1c1917,stroke:#d97706,stroke-width:2px,color:#fff;
 
     A[Karan taps Start My Day at 9:15 AM]:::user --> B[KavachPay marks Karan as active in Dharavi zone]:::system
     B --> C[Heavy rain hits Dharavi at 1:30 PM]:::system
@@ -82,7 +82,6 @@ graph TD
     L --> M[Notification — Stay safe, Karan. Your cover kicked in.]:::user
     J -- No --> N[Claim flagged for manual review]:::system
 ```
-
 Karan filed nothing. He made no call. By 1:52 PM — twenty-two minutes after the rain started — ₹1,774 was in his account. His KavachScore remains Green, his premium does not change, and he is covered again the following week for the same ₹68.
 ---
 ## Discussion Forums
@@ -96,10 +95,10 @@ We are sure that this is a great addition to kavach pay because the automated sy
 ### Forum flow
 ```mermaid
 graph LR
-    classDef user fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff;
-    classDef mod fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff;
-    classDef system fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff;
-    classDef tag fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff;
+    classDef user fill:#0f172a,stroke:#1e40af,stroke-width:2px,color:#fff;
+    classDef mod fill:#1e1b4b,stroke:#4338ca,stroke-width:2px,color:#fff;
+    classDef system fill:#134e4a,stroke:#0f766e,stroke-width:2px,color:#fff;
+    classDef tag fill:#1c1917,stroke:#d97706,stroke-width:2px,color:#fff;
 
     A[Worker creates post]:::user --> B{Select tag}:::system
     B --> C[General]:::tag
@@ -121,9 +120,9 @@ graph LR
 ### Moderation logic
 ```mermaid
 graph TD
-    classDef system fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff;
-    classDef mod fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff;
-    classDef outcome fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff;
+    classDef system fill:#134e4a,stroke:#0f766e,stroke-width:2px,color:#fff;
+    classDef mod fill:#1e1b4b,stroke:#4338ca,stroke-width:2px,color:#fff;
+    classDef outcome fill:#0f172a,stroke:#1e40af,stroke-width:2px,color:#fff;
 
     A[Issue post created]:::system --> B[Like count tracked in real time]:::system
     B --> C{Likes cross threshold}:::system
