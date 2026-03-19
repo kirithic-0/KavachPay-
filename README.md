@@ -53,6 +53,47 @@ Five independent checks run in sequence: work intent, historical work patterns, 
 Workers who pass all checks receive a UPI transfer within minutes. The amount depends on disruption severity. No human reviews it. No approval queue.
 
 ---
+## ML Models
+
+### Premium Calculator
+
+| Factor | Description |
+|---|---|
+| 1 · Zone risk | Flood and disruption history of delivery zone |
+| 2 · Past claims | Total number of claims filed over tenure |
+| 3 · Tenure | How long the worker has been on the platform |
+| 4 · City tier | Metro vs smaller city — affects baseline risk |
+| 5 · Age | Worker age as a proxy for riding experience |
+| 6 · Claim honesty | Ratio of verified legitimate claims to total |
+| 7 · Social disruption exposure | Zone's history of curfews and local strikes |
+| 8 · Daily distance | Average km ridden per shift — exposure proxy |
+| 9 · KavachScore | Worker's overall trust and reliability score |
+| 10 · Coverage ratio | Payout ceiling as a share of weekly income |
+| 11 · Voluntary top-up | Worker opts for higher premium for more cover |
+| 12 · Referral discount | One-time reduction for joining via referral |
+
+Factors 1–9 are inputs to the ML model. Factors 10–12 are applied after the model output.
+
+---
+
+### Fraud Detection
+
+| Layer | Description |
+|---|---|
+| L1 · Work intent | Did the worker check in before the disruption? |
+| L2 · Activity check | Was the worker actually idle during the event? |
+| L3 · Zone correlation | Are other workers in the same zone affected? |
+| L4 · Self declaration | Worker confirms impact via in-app prompt |
+| L5 · KavachScore gate | Low trust score triggers manual review |
+| L6A · Claim frequency | Claims per month compared to platform average |
+| L6B · Honesty ratio | Share of past claims that were verified genuine |
+| L7 · Severity consistency | Claimed severity matches zone-level evidence |
+| L8 · Submission timing | Claim filed within valid window of disruption |
+| L9 · Duplicate claim | Same claim type not already filed that day |
+| L10 · Weather verification | Live API confirms the disruption actually occurred |
+| L11 · Payout consistency | Claimed amount does not exceed weekly income |
+| L12 · New worker high claim | Very new workers filing severe claims flagged |
+---
 
 ## Disruption Triggers
 
