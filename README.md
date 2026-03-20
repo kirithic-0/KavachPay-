@@ -140,50 +140,6 @@ graph TD
     F -- Needs more info --> I[Moderator replies on post]:::outcome
 ```
 
----
-
-## 🤖 ML Models
-
-### Premium Calculator
-
-| Factor | Description |
-|---|---|
-| 1 · Zone risk | Flood and disruption history of delivery zone |
-| 2 · Past claims | Total number of claims filed over tenure |
-| 3 · Tenure | How long the worker has been on the platform |
-| 4 · City tier | Metro vs smaller city — affects baseline risk |
-| 5 · Age | Worker age as a proxy for riding experience |
-| 6 · Claim honesty | Ratio of verified legitimate claims to total |
-| 7 · Social disruption exposure | Zone's history of curfews and local strikes |
-| 8 · Daily distance | Average km ridden per shift — exposure proxy |
-| 9 · KavachScore | Worker's overall trust and reliability score |
-| 10 · Coverage ratio | Payout ceiling as a share of weekly income |
-| 11 · Voluntary top-up | Worker opts for higher premium for more cover |
-| 12 · Referral discount | One-time reduction for joining via referral |
-
-Factors 1–9 are inputs to the ML model. Factors 10–12 are applied after the model output.
-
----
-
-### Fraud Detection
-
-| Layer | Description |
-|---|---|
-| L1 · Work intent | Did the worker check in before the disruption? |
-| L2 · Activity check | Was the worker actually idle during the event? |
-| L3 · Zone correlation | Are other workers in the same zone affected? |
-| L4 · Self declaration | Worker confirms impact via in-app prompt |
-| L5 · KavachScore gate | Low trust score triggers manual review |
-| L6A · Claim frequency | Claims per month compared to platform average |
-| L6B · Honesty ratio | Share of past claims that were verified genuine |
-| L7 · Severity consistency | Claimed severity matches zone-level evidence |
-| L8 · Submission timing | Claim filed within valid window of disruption |
-| L9 · Duplicate claim | Same claim type not already filed that day |
-| L10 · Weather verification | Live API confirms the disruption actually occurred |
-| L11 · Payout consistency | Claimed amount does not exceed weekly income |
-| L12 · New worker high claim | Very new workers filing severe claims flagged |
-
----
 
 ## 🌧️ Disruption Triggers
 
@@ -242,6 +198,82 @@ A higher KavachScore also unlocks lower premiums over time, giving workers a rea
 
 ---
 
+## 🛡️ Adversarial Defense and Anti-Spoofing Strategy
+
+> A syndicate of 500 workers in a tier-1 city exploited a beta parametric platform using GPS-spoofing apps — faking their locations into red-alert weather zones and draining the liquidity pool. KavachPay was built with this exact threat in mind.
+
+---
+
+### 🎯 The Differentiation — How We Separate Real Workers from Bad Actors
+
+KavachPay does not use GPS coordinates to determine a worker's zone. Instead, **zone placement is derived entirely from the worker's 5 most recent pickup and delivery locations pulled from the Zomato / Swiggy platform API.**
+
+This is the core of our anti-spoofing architecture. A worker's "location" in our system is not where their phone says they are — it is where their last 5 orders were actually fulfilled.
+```
+Zone assignment = median location cluster of last 5 pickup + delivery points
+```
+
+This single architectural decision makes GPS spoofing **completely irrelevant** to KavachPay. A bad actor can fake their GPS to show they are in Dharavi — but unless they physically completed 5 real orders in Dharavi, our system will not place them there.
+
+---
+
+### 📊 The Data — What We Analyse Beyond GPS
+
+To detect coordinated fraud rings, KavachPay cross-references the following signals on every claim:
+
+| Signal | What it catches |
+|---|---|
+| 🗺️ **Last 5 pickup + drop locations** | Zone spoofing — GPS means nothing if order history says otherwise |
+| 👥 **Zone claim density spike** | Sudden mass claims from one zone in a short window — syndicate pattern |
+| ⏱️ **Time between last order and claim** | Legitimate workers go idle mid-shift — fraudsters never started |
+| 📱 **Platform API order activity** | No orders accepted that day = no proof of intent to work |
+| 🔁 **Claim coordination timing** | Multiple workers claiming within minutes of each other — statistically abnormal |
+| 📉 **KavachScore history** | New accounts with no delivery history filing severe claims immediately |
+| 🏘️ **Order location vs claimed zone** | Last 5 orders in Zone A but claiming disruption in Zone B — flagged instantly |
+
+The 5-order threshold is deliberately chosen. Completing 5 real pickups and drops in a fake zone just to qualify for a claim is operationally infeasible for a fraud syndicate at scale — the cost of the deception exceeds the payout.
+
+---
+
+### ⚖️ The UX Balance — Protecting Honest Workers
+
+A worker experiencing a genuine network drop during a storm should never be penalised for it. KavachPay's flagging system is designed with this explicitly in mind.
+
+**How flagged claims are handled:**
+```
+Single flag raised
+        ↓
+Claim enters soft-hold (not rejected)
+        ↓
+System waits 2 hours for corroborating zone data
+        ↓
+If 3+ other workers in same zone also claimed → auto-approved
+If isolated → escalated to manual review with full context
+```
+
+**Key protections for honest workers:**
+
+- 🟢 **A network drop does not raise a flag.** Connectivity issues are expected in heavy rain. The system only checks order history, not real-time GPS pings.
+- 🟡 **A single flag never auto-rejects.** It triggers a soft-hold and a secondary check — not an immediate denial.
+- 🔵 **Zone is locked to order history, not live location.** A worker who loses signal mid-shift is not moved out of their zone. Their last 5 orders anchor them there permanently for that claim window.
+- 🏅 **KavachScore absorbs uncertainty fairly.** Workers with high scores (750+) get the benefit of the doubt on ambiguous flags. Their track record speaks for them.
+- 📞 **Manual review includes worker context.** Reviewers see the full picture — order history, zone data, weather API confirmation — not just a flag count.
+
+---
+
+### 🧠 Why This Architecture is Syndicate-Resistant
+
+A GPS spoofing syndicate works because it is cheap, fast, and scalable. One person can spoof their location in seconds. Our defence breaks this economics entirely.
+
+To successfully defraud KavachPay, a bad actor would need to:
+
+1. Physically travel to a target disruption zone
+2. Complete 5 real Zomato / Swiggy orders in that zone
+3. Then go idle and file a claim
+
+At that point — they were genuinely working in a disrupted zone. **That is not fraud. That is exactly who KavachPay is built to protect.**
+
+The system is not just resistant to GPS spoofing. It is structurally immune to it.
 ## 📁 Repo Structure
 
 ```
