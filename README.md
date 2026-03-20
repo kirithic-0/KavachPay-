@@ -12,6 +12,27 @@ Guidewire DEVTrails 2026 | Team : The boys
 
 ---
 
+## 📑 Index
+
+| # | Section |
+|---|---|
+| 1 | [What is KavachPay?](#-what-is-kavachpay) |
+| 2 | [Who We Are Building For](#-who-we-are-building-for) |
+| 3 | [How It Works](#-how-it-works) |
+| 4 | [⭐Discussion Forums](#-discussion-forums-) |
+| 5 | [Disruption Triggers](#-disruption-triggers) |
+| 6 | [Weekly Pricing](#-weekly-pricing) |
+| 7 | [KavachScore](#-kavachscore) |
+| 8 | [ML Models](#-ml-models) |
+| 9 | [Architecture](#-architecture) |
+| 10 | [Tech Stack](#-tech-stack) |
+| 11 | [Adversarial Defense and Anti-Spoofing Strategy](#-adversarial-defense-and-anti-spoofing-strategy) |
+| 12 | [Repo Structure](#-repo-structure) |
+| 13 | [Project Timeline](#-project-timeline) |
+| 14 | [Why KavachPay Matters](#-why-kavachpay-matters) |
+
+---
+
 ##  What is KavachPay?
 
 KavachPay is a parametric income insurance platform built exclusively for Zomato and Swiggy delivery partners in Indian metro cities. It monitors weather and environmental disruptions in a worker's delivery zone in real time, verifies they were actively working and got affected, and transfers money directly to their UPI account — automatically, within minutes.
