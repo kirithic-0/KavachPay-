@@ -1,6 +1,26 @@
+# ── Secrets — NEVER commit these ──────────────────────────
 .env
 firebase-credentials.json
-venv/
-.venv/
+
+# ── Python ────────────────────────────────────────────────
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+
+# ── Virtual environments ──────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── OS files ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── VS Code ───────────────────────────────────────────────
+.vscode/
+
+# ── Logs ──────────────────────────────────────────────────
+*.log
