@@ -262,15 +262,11 @@ kavachpay/
 
 ## Project Timeline
 
-**Weeks 1–2 (March 4–20) — Research and Design**
-We spent the first two weeks deeply understanding the problem before writing a single line of code. This meant studying how delivery workers actually earn, mapping out which disruptions affect them most, and designing the premium model from scratch. The KavachScore concept and the 5-layer fraud system were both defined during this period. We also set up the repo, finalized the tech stack, and built early UI wireframes to agree on the product direction as a team.
+**Weeks 1–2 (March 4–20)** — Research, system design, premium model, KavachScore concept, fraud system logic, repo setup, UI wireframes.
 
-**Weeks 3–4 (March 21 – April 4) — Building the Core**
-This is where the product comes together. The worker onboarding flow goes live, the Flask backend connects to Firebase, and the premium calculator runs on real signup data. The weather trigger engine starts polling OpenWeatherMap every 30 minutes — and when a threshold is crossed, a claim record is created automatically in the database. By the end of Week 4, a worker should be able to sign up, see their premium, and watch a claim appear when a disruption is simulated. The full Trigger → Verify → Pay loop works end to end.
+**Weeks 3–4 (March 21 – April 4)** — Core build: onboarding, backend, Firebase, weather trigger engine, end-to-end Trigger → Verify → Pay loop.
 
-**Weeks 5–6 (April 5–17) — Hardening and Demo**
-The final stretch focuses on making the product trustworthy and demo-ready. All five fraud detection layers are activated and connected to the claim pipeline. Razorpay test mode is wired in so payouts actually fire to a simulated UPI account. The worker dashboard shows KavachScore, earnings protected, and payout history. The admin view shows zone-level disruption activity and loss ratios. The last few days are reserved for recording the final walkthrough video and putting together the pitch deck.
-
+**Weeks 5–6 (April 5–17)** — Fraud detection, Razorpay payouts, worker and admin dashboards, demo video, pitch deck.
 ---
 
 ## Why KavachPay Matters
