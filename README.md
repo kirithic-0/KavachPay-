@@ -1,5 +1,5 @@
 #  KavachPay
-![logo](docs/logo.jpg)
+![logo](docs/logo.jpeg)
 > **Trigger. Verify. Pay.**
 > Automatic income protection for food delivery workers — when the weather stops them working, KavachPay pays them instantly.
 
