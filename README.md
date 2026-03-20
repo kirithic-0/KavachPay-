@@ -139,12 +139,9 @@ graph TD
     F -- False report --> H[Post marked resolved, no action]:::outcome
     F -- Needs more info --> I[Moderator replies on post]:::outcome
 ```
-
+---
 
 ## 🌧️ Disruption Triggers
-
-<details>
-<summary>View all 13 disruption types</summary>
 
 - Heavy rain
 - Moderate rain
@@ -159,9 +156,6 @@ graph TD
 - Heatwave
 - Dense fog
 - High wind
-
-</details>
-
 ---
 
 ## 💰 Weekly Pricing
@@ -230,7 +224,6 @@ Every claim passes through independent verification layers before a payout is ap
 
 > A syndicate of 500 workers in a tier-1 city exploited a beta parametric platform using GPS-spoofing apps — faking their locations into red-alert weather zones and draining the liquidity pool. KavachPay was built with this exact threat in mind.
 
----
 
 ### 🎯 The Differentiation — How We Separate Real Workers from Bad Actors
 
@@ -243,7 +236,6 @@ Zone assignment = median location cluster of last 5 pickup + delivery points
 
 This single architectural decision makes GPS spoofing **completely irrelevant** to KavachPay. A bad actor can fake their GPS to show they are in Dharavi — but unless they physically completed 5 real orders in Dharavi, our system will not place them there.
 
----
 
 ### 📊 The Data — What We Analyse Beyond GPS
 
@@ -260,8 +252,6 @@ To detect coordinated fraud rings, KavachPay cross-references the following sign
 | 🏘️ **Order location vs claimed zone** | Last 5 orders in Zone A but claiming disruption in Zone B — flagged instantly |
 
 The 5-order threshold is deliberately chosen. Completing 5 real pickups and drops in a fake zone just to qualify for a claim is operationally infeasible for a fraud syndicate at scale — the cost of the deception exceeds the payout.
-
----
 
 ### ⚖️ The UX Balance — Protecting Honest Workers
 
@@ -287,8 +277,6 @@ If isolated → escalated to manual review with full context
 - 🏅 **KavachScore absorbs uncertainty fairly.** Workers with high scores (750+) get the benefit of the doubt on ambiguous flags. Their track record speaks for them.
 - 📞 **Manual review includes worker context.** Reviewers see the full picture — order history, zone data, weather API confirmation — not just a flag count.
 
----
-
 ### 🧠 Why This Architecture is Syndicate-Resistant
 
 A GPS spoofing syndicate works because it is cheap, fast, and scalable. One person can spoof their location in seconds. Our defence breaks this economics entirely.
@@ -302,6 +290,7 @@ To successfully defraud KavachPay, a bad actor would need to:
 At that point — they were genuinely working in a disrupted zone. **That is not fraud. That is exactly who KavachPay is built to protect.**
 
 The system is not just resistant to GPS spoofing. It is structurally immune to it.
+
 ## 📁 Repo Structure
 
 ```
