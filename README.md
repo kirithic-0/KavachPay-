@@ -19,21 +19,21 @@ Guidewire DEVTrails 2026 | Team : The boys
 | 1 | [What is KavachPay?](#what-is-kavachpay) |
 | 2 | [Who We Are Building For](#-who-we-are-building-for) |
 | 3 | [How It Works](#-how-it-works) |
-| 4 | [⭐Discussion Forums⭐](#-discussion-forums-) |
-| 5 | [Disruption Triggers](#-disruption-triggers) |
-| 6 | [Weekly Pricing](#-weekly-pricing) |
-| 7 | [KavachScore](#-kavachscore) |
-| 8 | [ML Models](#-ml-models) |
+| 4 | [Disruption Triggers](#-disruption-triggers) |
+| 5 | [Weekly Pricing](#-weekly-pricing) |
+| 6 | [KavachScore](#-kavachscore) |
+| 7 | [ML Models](#-ml-models) |
+| 8 | [Discussion Forums](#-discussion-forums) |
 | 9 | [Architecture](#%EF%B8%8F-architecture) |
 | 10 | [Tech Stack](#%EF%B8%8F-tech-stack) |
-| 11 | [🛡️Adversarial Defense and Anti-Spoofing Strategy🛡️](#%EF%B8%8F-adversarial-defense-and-anti-spoofing-strategy) |
+| 11 | [Adversarial Defense and Anti-Spoofing Strategy](#%EF%B8%8F-adversarial-defense-and-anti-spoofing-strategy) |
 | 12 | [Repo Structure](#-repo-structure) |
 | 13 | [Project Timeline](#%EF%B8%8F-project-timeline) |
 | 14 | [Why KavachPay Matters](#-why-kavachpay-matters) |
 
-##  What is KavachPay?
+## What is KavachPay?
 
-KavachPay is a parametric income insurance platform built exclusively for Zomato and Swiggy delivery partners in Indian metro cities. It monitors weather and environmental disruptions in a worker's delivery zone in real time, verifies they were actively working and got affected, and transfers money directly to their UPI account — automatically, within minutes.
+KavachPay is a parametric income insurance platform built exclusively for Zomato and Swiggy delivery partners across all Indian cities and zones where Swiggy and Zomato operate. It monitors weather and environmental disruptions in a worker's delivery zone in real time, verifies they were actively working and got affected, and transfers money directly to their UPI account — automatically, within minutes.
 
 No claim form. No phone call. No waiting.
 
@@ -41,15 +41,20 @@ The entire flow — detection, verification, payout — runs without the worker 
 
 The platform is built around a weekly premium model starting at ₹49/week, a 12-layer fraud detection pipeline, and KavachScore — a proprietary trust metric that governs payout speed and premium rates for every worker.
 
-### 🌟 What makes KavachPay different 🌟
+### 🌟 What makes KavachPay different
 
-Most parametric insurance platforms stop at automation. KavachPay goes further.
+Most parametric insurance platforms stop at automation. KavachPay goes further — it is built from the ground up to be more trustworthy, more accessible, and more intelligent than anything available to gig workers today.
 
-We recognised early that no API can catch everything — a zone misclassified as safe, a payment gateway silently failing for an entire area, a local flood that hasn't made it into any government feed yet. These are real problems that real workers face, and automated systems will always miss them.
+Here is what sets it apart:
 
-That is why KavachPay ships with a built-in **Discussion Forum** — a community layer where workers can post, flag issues, and surface ground-level problems that data feeds cannot see. Issue posts that receive enough likes from other workers are automatically escalated to moderators for review. Individual complaints become collective evidence. Worker voices become platform intelligence.
-
-This is not a bolt-on feature. It is a core part of how KavachPay stays accurate, trusted, and honest over time.
+- **12-Layer Fraud Detection Pipeline** — Every claim passes through twelve independent verification layers before a payout is approved. No single flag blocks a claim. The system looks for patterns, not isolated anomalies — giving honest workers the benefit of the doubt while remaining structurally immune to coordinated fraud.
+- **Direct Platform Integration** — KavachPay connects directly to a worker's Swiggy or Zomato account at signup, pulling real order activity and zone placement from their delivery history. This eliminates GPS spoofing entirely and ensures coverage is anchored to where a worker actually delivers.
+- **Bilingual Platform (English and Hindi)** — The entire product — landing page, onboarding, dashboard, chatbot — is available in both English and Hindi, built for Bharat and not just metro English speakers.
+- **24/7 AI-Enabled Chatbot (KavachBot)** — Workers can ask questions about their coverage, claim status, and payout rules at any time — in plain language, instantly — without calling a helpline or waiting for support.
+- **Instant UPI Payouts** — Verified claims are settled directly to a worker's UPI account with no intermediary step. Average time from disruption detection to credit: under 4 minutes.
+- **KavachScore** — A proprietary trust score (0–900) unique to each worker that governs payout speed and unlocks lower premiums over time. Workers with strong scores get instant transfers; it gives every worker a direct incentive to engage honestly with the platform.
+- **Weekly Premium Model** — Coverage is priced weekly, not monthly, because that is how gig workers earn and think about money. A ₹49 deduction on Monday morning is manageable. A ₹200 monthly charge is a risk.
+- **Discussion Forum** — A community layer where workers can post issues and flag ground-level problems that no API can detect — like a misclassified zone or a silent payment failure. Issue posts that reach a like threshold are automatically escalated to moderators, turning individual worker voices into platform intelligence.
 
 ---
 
@@ -59,11 +64,11 @@ India's food delivery workforce is one of the most financially vulnerable groups
 
 | | |
 |---|---|
-| 🎂 **Age range** | 18 – 35 years |
-| 🏙️ **Cities** | Bengaluru, Mumbai, Delhi, Chennai, Hyderabad |
+| 🎂 **Age range** | 18 – 55 years |
+| 🏙️ **Cities** | All Tier 1, 2, and 3 cities — covering every area where Swiggy and Zomato operate across India |
 | 💸 **Weekly income** | ₹2,500 – ₹6,000 |
 | 📅 **Work pattern** | 6 to 10 hours a day, 5 to 7 days a week |
-| 📱 **Device** | Android smartphone, comfortable with UPI and app-based payments |
+| 📱 **Device** | Smartphone (iOS or Android), compatible with UPI and app-based payments |
 | 🛡️ **Existing insurance** | None — completely excluded from formal products |
 
 ### The reality they face
@@ -120,6 +125,7 @@ graph TD
 ```
 
 Karan filed nothing. He made no call. By 1:52 PM — twenty-two minutes after the rain started — ₹1,774 was in his account. His KavachScore remains Green, his premium does not change, and he is covered again the following week for the same ₹68.
+
 ---
 
 ## ⚡ How It Works
@@ -133,12 +139,95 @@ For each worker in the affected zone, the system checks if they were active and 
 **Step 3 — Fraud checks run automatically**
 Twelve independent checks run in sequence: work intent, historical work patterns, zone-wide correlation, self-declaration, and KavachScore evaluation — all automated, all instant.
 
-**Step 4 — Payout**
+**Step 4 — Payout is processed**
 Workers who pass all checks receive a UPI transfer within minutes. The amount depends on disruption severity. No human reviews it. No approval queue.
 
 ---
 
-## ⭐ Discussion Forums ⭐
+## 🌧️ Disruption Triggers
+
+- Heavy rain
+- Moderate rain
+- Light rain
+- Severe AQI
+- Moderate AQI
+- Storm
+- Flood
+- Curfew
+- Earthquake
+- Landslide
+- Heatwave
+- Dense fog
+- High wind
+  
+---
+
+## 💰 Weekly Pricing
+
+KavachPay charges a weekly premium because that is how delivery workers think about money. A ₹49 deduction on Monday feels manageable. A ₹200 monthly charge feels like a risk.
+
+The base premium is ₹49 per week. It adjusts based on three factors: the flood risk profile of the worker's zone, their claim history, and how long they have been on the platform. New workers in high-risk zones pay up to ₹80 per week. Experienced workers in safer zones pay the base rate.
+
+Coverage is always 65% of the worker's average weekly income — calculated from their signup data and adjusted over time.
+
+Crucially, a legitimate claim never raises a worker's premium. Pricing reflects where you work, not whether you've claimed before.
+
+---
+
+## 🏅 KavachScore
+
+Every worker on KavachPay has a KavachScore — a number between 0 and 900 that reflects their claim reliability. Think of it as a trust rating for insurance.
+
+It starts at 750 for everyone. It goes up when claims are verified clean, when workers honestly decline payouts they don't need, or when they renew their policy without gaps. It goes down when fraud flags are raised.
+
+The score determines payout speed:
+
+- **750 and above** — payout credited instantly
+- **500 to 749** — transfer delayed by 2 hours
+- **300 to 499** — flagged for manual admin review
+- **Below 300** — account blocked pending review
+
+A higher KavachScore also unlocks lower premiums over time, giving workers a real incentive to engage honestly with the system.
+
+---
+
+## 🤖 ML Models
+
+KavachPay uses two core ML components — a premium calculator that prices risk fairly for each worker, and a fraud detection pipeline that protects the platform from abuse without penalising honest workers.
+
+We would be retraining our two ML models every 2 months.
+
+### 💰 Premium Calculator
+
+The weekly premium is personalised to each worker using a trained ML model that weighs the following key factors:
+
+**Models** : Random Forest Regressor, XGBoost Regressor
+
+| Factor | What it captures |
+|---|---|
+| 🗺️ Zone risk | How disruption-prone the worker's delivery area is |
+| 📋 Past claims | Whether the worker has a high or low claim history |
+| ⏳ Tenure | How long they have been active on the platform |
+| 🏅 KavachScore | Their overall trust and reliability on the platform |
+| 📍 Daily distance | How far they ride on an average shift |
+
+### 🔍 Fraud Detection Pipeline
+
+Every claim passes through independent verification layers before a payout is approved. No single flag blocks a claim — the system looks for patterns, not isolated anomalies.
+
+**Models** : Random Forest Classifier, Isolation Forest, Logistic Regression
+
+| Layer | What it checks |
+|---|---|
+| 🟢 Work intent | Was the worker active before the disruption hit? |
+| 🟢 Zone correlation | Are other workers in the same zone also affected? |
+| 🟡 Claim frequency | Are they claiming at an unusual rate compared to peers? |
+| 🔴 Weather verification | Does live API data confirm the disruption occurred? |
+| 🔴 Payout consistency | Is the claimed amount realistic given their income? |
+
+---
+
+## 💬 Discussion Forums
 
 KavachPay includes a lightweight community forum where delivery workers can post, communicate, and flag issues. Posts are tagged as either **General** (open discussion about gig work, zones, and platform updates) or **Issue** (specific problems like incorrect zone ratings or payment failures). Workers can like posts, and issue posts that cross a certain like threshold are automatically surfaced to moderators for manual review — turning individual complaints into collective evidence.
 
@@ -189,84 +278,6 @@ graph TD
 
 ---
 
-## 🌧️ Disruption Triggers
-
-- Heavy rain
-- Moderate rain
-- Light rain
-- Severe AQI
-- Moderate AQI
-- Storm
-- Flood
-- Curfew
-- Earthquake
-- Landslide
-- Heatwave
-- Dense fog
-- High wind
-  
----
-
-## 💰 Weekly Pricing
-
-KavachPay charges a weekly premium because that is how delivery workers think about money. A ₹49 deduction on Monday feels manageable. A ₹200 monthly charge feels like a risk.
-
-The base premium is ₹49 per week. It adjusts based on three factors: the flood risk profile of the worker's zone, their claim history, and how long they have been on the platform. New workers in high-risk zones pay up to ₹80 per week. Experienced workers in safer zones pay the base rate.
-
-Coverage is always 65% of the worker's average weekly income — calculated from their signup data and adjusted over time.
-
-Crucially, a legitimate claim never raises a worker's premium. Pricing reflects where you work, not whether you've claimed before.
-
----
-
-## 🏅 KavachScore
-
-Every worker on KavachPay has a KavachScore — a number between 300 and 900 that reflects their claim reliability. Think of it as a trust rating for insurance.
-
-It starts at 750 for everyone. It goes up when claims are verified clean, when workers honestly decline payouts they don't need, or when they renew their policy without gaps. It goes down when fraud flags are raised.
-
-The score determines payout speed:
-
-- **750 and above** — transfer fires instantly
-- **500 to 749** — transfer delayed by 2 hours
-- **Below 500** — flagged for manual admin review
-
-A higher KavachScore also unlocks lower premiums over time, giving workers a real incentive to engage honestly with the system.
-
----
-## 🤖 ML Models
-
-KavachPay uses two core ML components — a premium calculator that prices risk fairly for each worker, and a fraud detection pipeline that protects the platform from abuse without penalising honest workers.
-
-We would be retrainning  our two ML models every 2 months 🔧
-
-### 💰 Premium Calculator
-
-The weekly premium is personalised to each worker using a trained ML model that weighs the following key factors:
-
-**Models** :Random Forest regressor , XGboost regressor
-| Factor | What it captures |
-|---|---|
-| 🗺️ Zone risk | How disruption-prone the worker's delivery area is |
-| 📋 Past claims | Whether the worker has a high or low claim history |
-| ⏳ Tenure | How long they have been active on the platform |
-| 🏅 KavachScore | Their overall trust and reliability on the platform |
-| 📍 Daily distance | How far they ride on an average shift |
-
-### 🔍 Fraud Detection Pipeline
-
-Every claim passes through independent verification layers before a payout is approved. No single flag blocks a claim — the system looks for patterns, not isolated anomalies.
-
-**Models** :Randomforest classifier , Isolation forest ,Logistic regression
-
-| Layer | What it checks |
-|---|---|
-| 🟢 Work intent | Was the worker active before the disruption hit? |
-| 🟢 Zone correlation | Are other workers in the same zone also affected? |
-| 🟡 Claim frequency | Are they claiming at an unusual rate compared to peers? |
-| 🔴 Weather verification | Does live API data confirm the disruption occurred? |
-| 🔴 Payout consistency | Is the claimed amount realistic given their income? |
----
 ## 🏗️ Architecture
 
 ![Architecture](docs/image.png)
@@ -278,18 +289,19 @@ Every claim passes through independent verification layers before a payout is ap
 | Layer | Technology | Purpose |
 |---|---|---|
 | 🎨 **Frontend** | React | Worker app, dashboard, admin interface |
-| 🎨 **Styling** | Tailwind CSS | UI components and responsive design |
 | ⚙️ **Backend** | Python / Flask | API routes, trigger engine, business logic |
 | 🗄️ **Database** | Firebase Firestore | Real-time data, worker profiles, claims |
 | 🤖 **ML / AI** | Python (scikit-learn) | Premium calculator, fraud detection, KavachScore |
 | 🌦️ **Weather** | IMD API | Live rainfall, temperature, storm alerts |
 | 🌫️ **Air Quality** | CPCB / WAQI API | Live AQI monitoring per city zone |
 | 🌊 **Disasters** | NDMA API | Flood and natural disaster alerts |
-| 🛵 **Platform** | Zomato / Swiggy API | Worker order activity and zone placement |
+| 🛵 **Platform** | Swiggy / Zomato (Mock API) | Simulated worker order activity and zone placement — mock API used to retrieve delivery details, zone history, and order activity for each worker |
+| 🤖 **AI / LLM** | Groq API | Powers KavachBot — the 24/7 AI chatbot for worker queries, claim status, and coverage explanations |
 | 📰 **News** | News API | Ground-level disruption and civic event alerts |
 | 💳 **Payments** | Razorpay (test mode) | Simulated UPI payouts to workers |
 | 🪪 **Verification** | DigiLocker | Aadhaar verification at onboarding |
-| ☁️ **Hosting** | Vercel + Render | Frontend and backend deployment |
+| ☁️ **Hosting** | Vercel | Frontend deployment |
+
 ---
 
 ## 🛡️ Adversarial Defense and Anti-Spoofing Strategy
@@ -299,7 +311,7 @@ Every claim passes through independent verification layers before a payout is ap
 
 ### 🎯 The Differentiation — How We Separate Real Workers from Bad Actors
 
-KavachPay does not use GPS coordinates to determine a worker's zone. Instead, **zone placement is derived entirely from the worker's 5 most recent pickup and delivery locations pulled from the Zomato / Swiggy platform API.**
+KavachPay does not use GPS coordinates to determine a worker's zone. Instead, **zone placement is derived entirely from the worker's 5 most recent pickup and delivery locations pulled from the Swiggy / Zomato mock platform API.**
 
 This is the core of our anti-spoofing architecture. A worker's "location" in our system is not where their phone says they are — it is where their last 5 orders were actually fulfilled.
 ```
@@ -395,4 +407,4 @@ The goal is simple: when something outside their control stops them from earning
 
 ---
 
-**🎥 Video:** *[(link)](https://youtu.be/HKZF3hCYf9Q?si=h6tOonJUrdXnJmyZ)*
+**🎥 Video:** *(link)*
