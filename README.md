@@ -269,7 +269,7 @@ Every claim passes through independent verification layers before a payout is ap
 ---
 ## 🏗️ Architecture
 
-![Architecture](docs/techstack.png)
+![Architecture](docs/image.png)
 
 ---
 
