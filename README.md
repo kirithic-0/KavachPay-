@@ -241,31 +241,9 @@ Any single flag alone does not block a payout. Two or more flags together mark a
 
 ---
 
-## Data Sources
+## Architecture
 
-| Source | What It Provides |
-|---|---|
-| OpenWeatherMap API | Live rainfall, temperature, weather alerts |
-| WAQI API (aqicn.org) | Live AQI and PM2.5 per city zone |
-| Python Faker + custom script | 1,000 synthetic worker profiles for testing |
-| Razorpay Test Mode | Simulated UPI payouts (no real money) |
-
-Delivery platform data (order counts, earnings) is simulated since Zomato and Swiggy APIs are not publicly available.
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Frontend | React.js + Tailwind CSS |
-| Backend | Python / Flask |
-| Database | Firebase Firestore |
-| AI and Logic | Python (rule-based engine) |
-| Weather | OpenWeatherMap API |
-| AQI | WAQI API |
-| Payments | Razorpay Test Mode |
-| Hosting | Vercel (frontend), Render (backend) |
+![Architecture](docs/techstack.png)
 
 ---
 
