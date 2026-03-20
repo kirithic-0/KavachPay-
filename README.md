@@ -13,7 +13,7 @@ Guidewire DEVTrails 2026 | Team : The boys
 
 ---
 
-## What is KavachPay?
+## 💡 What is KavachPay?
 
 KavachPay is a parametric income insurance platform built for Zomato and Swiggy delivery partners in Indian metro cities. It watches for weather and environmental disruptions in a worker's delivery zone, verifies they were active and got affected, and transfers money to their UPI account automatically.
 
@@ -23,8 +23,7 @@ The entire flow — detection, verification, payout — happens without the work
 
 ---
 
-
-## Example — A day in the life of a KavachPay worker
+## 👤 Example — A day in the life of a KavachPay worker
 
 <details>
 <summary>📋 Worker profile — Karan Mehta</summary>
@@ -47,10 +46,10 @@ The entire flow — detection, verification, payout — happens without the work
 
 </details>
 
-
-It is a Wednesday morning in July. Karan taps **Start My Day** on KavachPay at 9:15 AM and heads out for his shift in Dharavi. By 1:30 PM, heavy rain begins battering the zone. Orders dry up, roads flood, and Karan pulls over. He has earned ₹610 so far — less than half of what a normal Wednesday brings him.
+It is a Wednesday morning in July. Karan heads out for his shift in Dharavi. By 1:30 PM, heavy rain begins battering the zone. Orders dry up, roads flood, and Karan pulls over. He has earned ₹610 so far — less than half of what a normal Wednesday brings him.
 
 Here is what happens next.
+
 ```mermaid
 graph TD
     classDef user fill:#0f172a,stroke:#1e40af,stroke-width:2px,color:#fff;
@@ -58,31 +57,48 @@ graph TD
     classDef ai fill:#1e1b4b,stroke:#4338ca,stroke-width:2px,color:#fff;
     classDef outcome fill:#1c1917,stroke:#d97706,stroke-width:2px,color:#fff;
 
-    A[Karan taps Start My Day at 9:15 AM]:::user --> B[KavachPay marks Karan as active in Dharavi zone]:::system
-    B --> C[Heavy rain hits Dharavi at 1:30 PM]:::system
-    C --> D[OpenWeatherMap API detects rainfall threshold crossed]:::system
-    D --> E[Disruption event created for Dharavi zone]:::system
-    E --> F[System checks — was Karan active and now idle?]:::ai
-    F --> G[Yes — Karan started his day and went inactive at 1:28 PM]:::system
-    G --> H[Fraud detection pipeline runs — 12 layers]:::ai
-    H --> I[14 other Dharavi workers also inactive — zone confirmed]:::system
-    I --> J{All checks passed?}:::ai
-    J -- Yes --> K[Claim auto-approved — Moderate severity]:::system
-    K --> L[₹1,774 transferred to Karan's UPI]:::outcome
-    L --> M[Notification — Stay safe, Karan. Your cover kicked in.]:::user
-    J -- No --> N[Claim flagged for manual review]:::system
+    A[KavachPay marks Karan as active in Dharavi zone]:::user --> B[Heavy rain hits Dharavi at 1:30 PM]:::system
+    B --> C[IMD API detects rainfall threshold crossed]:::system
+    C --> D[Disruption event created for Dharavi zone]:::system
+    D --> E[System checks — was Karan active and now idle?]:::ai
+    E --> F[Yes — Karan was active and went inactive at 1:28 PM]:::system
+    F --> G[Fraud detection pipeline runs — 12 layers]:::ai
+    G --> H[14 other Dharavi workers also inactive — zone confirmed]:::system
+    H --> I{All checks passed?}:::ai
+    I -- Yes --> J[Claim auto-approved — Moderate severity]:::system
+    J --> K[₹1,774 transferred to Karan's UPI]:::outcome
+    K --> L[Notification — Stay safe, Karan. Your cover kicked in.]:::user
+    I -- No --> M[Claim flagged for manual review]:::system
 ```
+
 Karan filed nothing. He made no call. By 1:52 PM — twenty-two minutes after the rain started — ₹1,774 was in his account. His KavachScore remains Green, his premium does not change, and he is covered again the following week for the same ₹68.
+
 ---
-## Discussion Forums
+
+## ⚡ How It Works
+
+**Step 1 — System monitors conditions**
+Every 30 minutes, KavachPay polls live weather and AQI data for each active delivery zone. The moment a threshold is crossed, a disruption event is created for that zone.
+
+**Step 2 — Activity is verified**
+For each worker in the affected zone, the system checks if they were active and have since gone idle — consistent with being disrupted mid-shift.
+
+**Step 3 — Fraud checks run automatically**
+Twelve independent checks run in sequence: work intent, historical work patterns, zone-wide correlation, self-declaration, and KavachScore evaluation — all automated, all instant.
+
+**Step 4 — Payout fires**
+Workers who pass all checks receive a UPI transfer within minutes. The amount depends on disruption severity. No human reviews it. No approval queue.
+
+---
+
+## 💬 Discussion Forums
 
 KavachPay includes a lightweight community forum where delivery workers can post, communicate, and flag issues. Posts are tagged as either **General** (open discussion about gig work, zones, and platform updates) or **Issue** (specific problems like incorrect zone ratings or payment failures). Workers can like posts, and issue posts that cross a certain like threshold are automatically surfaced to moderators for manual review — turning individual complaints into collective evidence.
 
-We are sure that this is a great addition to kavach pay because the automated system can only detect what APIs can measure — discussion forums fill the gap by letting workers report ground-level problems that no weather feed will ever catch, like a misclassified zone or a silent payment failure affecting an entire area. It also builds trust with workers by giving them a visible voice in the platform, which directly improves retention and honest engagement with the KavachScore system.
-
----
+The automated system can only detect what APIs can measure — discussion forums fill the gap by letting workers report ground-level problems that no weather feed will ever catch, like a misclassified zone or a silent payment failure affecting an entire area. It also builds trust with workers by giving them a visible voice in the platform, which directly improves retention and honest engagement with the KavachScore system.
 
 ### Forum flow
+
 ```mermaid
 graph LR
     classDef user fill:#0f172a,stroke:#1e40af,stroke-width:2px,color:#fff;
@@ -105,9 +121,8 @@ graph LR
     L --> M[Action taken or escalated]:::mod
 ```
 
----
-
 ### Moderation logic
+
 ```mermaid
 graph TD
     classDef system fill:#134e4a,stroke:#0f766e,stroke-width:2px,color:#fff;
@@ -125,25 +140,9 @@ graph TD
     F -- Needs more info --> I[Moderator replies on post]:::outcome
 ```
 
-## How It Works
-
-**Step 1 — Worker checks in**
-At the start of their shift, the worker taps "Start My Day" on the KavachPay app. This single tap is their declaration of intent to work. It replaces complex GPS tracking entirely.
-
-**Step 2 — System monitors conditions**
-Every 30 minutes, KavachPay polls live weather and AQI data for each active delivery zone. The moment a threshold is crossed, a disruption event is created for that zone.
-
-**Step 3 — Activity is verified**
-For each worker in the affected zone, the system checks: did they start their day? Are they currently inactive? If yes — they were planning to work and got disrupted. That is a valid claim.
-
-**Step 4 — Fraud checks run automatically**
-Five independent checks run in sequence: work intent, historical work patterns, zone-wide correlation, a self-declaration prompt, and KavachScore evaluation. All automated, all instant.
-
-**Step 5 — Payout fires**
-Workers who pass all checks receive a UPI transfer within minutes. The amount depends on disruption severity. No human reviews it. No approval queue.
-
 ---
-## ML Models
+
+## 🤖 ML Models
 
 ### Premium Calculator
 
@@ -183,11 +182,13 @@ Factors 1–9 are inputs to the ML model. Factors 10–12 are applied after the 
 | L10 · Weather verification | Live API confirms the disruption actually occurred |
 | L11 · Payout consistency | Claimed amount does not exceed weekly income |
 | L12 · New worker high claim | Very new workers filing severe claims flagged |
+
 ---
 
-## Disruption Triggers
+## 🌧️ Disruption Triggers
+
 <details>
-<summary>Disruption Triggers</summary>
+<summary>View all 13 disruption types</summary>
 
 - Heavy rain
 - Moderate rain
@@ -207,7 +208,7 @@ Factors 1–9 are inputs to the ML model. Factors 10–12 are applied after the 
 
 ---
 
-## Weekly Pricing
+## 💰 Weekly Pricing
 
 KavachPay charges a weekly premium because that is how delivery workers think about money. A ₹49 deduction on Monday feels manageable. A ₹200 monthly charge feels like a risk.
 
@@ -219,7 +220,7 @@ Crucially, a legitimate claim never raises a worker's premium. Pricing reflects 
 
 ---
 
-## KavachScore
+## 🏅 KavachScore
 
 Every worker on KavachPay has a KavachScore — a number between 300 and 900 that reflects their claim reliability. Think of it as a trust rating for insurance.
 
@@ -235,27 +236,13 @@ A higher KavachScore also unlocks lower premiums over time, giving workers a rea
 
 ---
 
-## Fraud Detection
-
-KavachPay runs five checks on every claim before approving a payout.
-
-1. **Work intent** — did the worker tap Start My Day before the disruption?
-2. **Day pattern** — does the worker usually work on this day of the week?
-3. **Zone correlation** — are at least 3 other workers in the same zone also inactive?
-4. **Self declaration** — worker confirms via in-app prompt that they were impacted
-5. **KavachScore gate** — workers in the Red tier are held for manual review
-
-Any single flag alone does not block a payout. Two or more flags together mark a claim as suspicious and pause auto-approval. This keeps honest workers protected while filtering out fraud without requiring a human investigator.
-
----
-
-## Architecture
+## 🏗️ Architecture
 
 ![Architecture](docs/techstack.png)
 
 ---
 
-## Repo Structure
+## 📁 Repo Structure
 
 ```
 kavachpay/
@@ -268,16 +255,17 @@ kavachpay/
 
 ---
 
-## Project Timeline
+## 🗓️ Project Timeline
 
 **Weeks 1–2 (March 4–20)** — Research, system design, premium model, KavachScore concept, fraud system logic, repo setup, UI wireframes.
 
 **Weeks 3–4 (March 21 – April 4)** — Core build: onboarding, backend, Firebase, weather trigger engine, end-to-end Trigger → Verify → Pay loop.
 
 **Weeks 5–6 (April 5–17)** — Fraud detection, Razorpay payouts, worker and admin dashboards, demo video, pitch deck.
+
 ---
 
-## Why KavachPay Matters
+## 🌍 Why KavachPay Matters
 
 India has over 12 million gig delivery workers. None of them have income insurance designed for how they actually work. KavachPay is not a modified version of an existing product — it is built ground-up for the weekly, weather-exposed, paperwork-allergic reality of the gig worker.
 
@@ -285,4 +273,4 @@ The goal is simple: when something outside their control stops them from earning
 
 ---
 
-**Video:** *(link)*
+**🎥 Video:** *(link)*
