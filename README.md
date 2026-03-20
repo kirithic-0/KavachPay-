@@ -14,12 +14,23 @@ Guidewire DEVTrails 2026 | Team : The boys
 
 ## 💡 What is KavachPay?
 
-KavachPay is a parametric income insurance platform built for Zomato and Swiggy delivery partners in Indian metro cities. It watches for weather and environmental disruptions in a worker's delivery zone, verifies they were active and got affected, and transfers money to their UPI account automatically.
+KavachPay is a parametric income insurance platform built exclusively for Zomato and Swiggy delivery partners in Indian metro cities. It monitors weather and environmental disruptions in a worker's delivery zone in real time, verifies they were actively working and got affected, and transfers money directly to their UPI account — automatically, within minutes.
 
 No claim form. No phone call. No waiting.
 
-The entire flow — detection, verification, payout — happens without the worker doing anything after their morning check-in.
+The entire flow — detection, verification, payout — runs without the worker lifting a finger. When rain stops them from delivering, KavachPay pays them before they even get home.
 
+The platform is built around a weekly premium model starting at ₹49/week, a 12-layer fraud detection pipeline, and KavachScore — a proprietary trust metric that governs payout speed and premium rates for every worker.
+
+### 🌟 What makes KavachPay different
+
+Most parametric insurance platforms stop at automation. KavachPay goes further.
+
+We recognised early that no API can catch everything — a zone misclassified as safe, a payment gateway silently failing for an entire area, a local flood that hasn't made it into any government feed yet. These are real problems that real workers face, and automated systems will always miss them.
+
+That is why KavachPay ships with a built-in **Discussion Forum** — a community layer where workers can post, flag issues, and surface ground-level problems that data feeds cannot see. Issue posts that receive enough likes from other workers are automatically escalated to moderators for review. Individual complaints become collective evidence. Worker voices become platform intelligence.
+
+This is not a bolt-on feature. It is a core part of how KavachPay stays accurate, trusted, and honest over time.
 ---
 
 ## 👥 Who We Are Building For
