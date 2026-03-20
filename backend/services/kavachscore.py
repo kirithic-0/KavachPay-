@@ -1,9 +1,15 @@
+"""
+services/kavachscore.py — Updated for v6 schema
+Uses customer_id as the Firestore document ID.
+"""
+
 from firebase_admin import firestore
 
-def update_kavach_score(worker_id, event_type):
-    db = firestore.client()
-    worker_ref = db.collection('workers').document(worker_id)
-    worker = worker_ref.get().to_dict()
+
+def update_kavach_score(customer_id, event_type):
+    db          = firestore.client()
+    worker_ref  = db.collection('workers').document(customer_id)
+    worker      = worker_ref.get().to_dict()
 
     if not worker:
         return None
@@ -23,31 +29,15 @@ def update_kavach_score(worker_id, event_type):
     }
 
     score += score_changes.get(event_type, 0)
-    score = max(300, min(900, score))  # Keep within 300-900
-
+    score  = max(300, min(900, score))
     worker_ref.update({'kavachScore': score})
     return score
 
 
 def get_score_tier(score):
     if score >= 750:
-        return {
-            'tier': 'green',
-            'label': 'Excellent',
-            'payout_speed': 'Instant',
-            'premium_modifier': 1.0
-        }
+        return {'tier': 'green',  'label': 'Excellent',      'payout_speed': 'Instant',                    'premium_modifier': 1.0}
     elif score >= 500:
-        return {
-            'tier': 'yellow',
-            'label': 'Good',
-            'payout_speed': '2-hour delay',
-            'premium_modifier': 1.1
-        }
+        return {'tier': 'yellow', 'label': 'Good',           'payout_speed': '2-hour delay',               'premium_modifier': 1.1}
     else:
-        return {
-            'tier': 'red',
-            'label': 'Review Needed',
-            'payout_speed': '24-hour delay + manual review',
-            'premium_modifier': 1.25
-        }
+        return {'tier': 'red',    'label': 'Review Needed',  'payout_speed': '24-hour delay + manual review', 'premium_modifier': 1.25}
