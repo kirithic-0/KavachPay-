@@ -186,16 +186,24 @@ Factors 1–9 are inputs to the ML model. Factors 10–12 are applied after the 
 ---
 
 ## Disruption Triggers
+<details>
+<summary>Disruption Triggers</summary>
 
-| Event | Threshold | Payout Level |
-|---|---|---|
-| Rainfall | 50–75mm → Minor / 75–100mm → Moderate / 100mm+ → Severe | 30% / 65% / 100% |
-| Air Quality | AQI 200–300 → Minor / 300–400 → Moderate / 400+ → Severe | 30% / 65% / 100% |
-| Flood Alert | Active NDMA warning in zone | 100% |
-| Curfew or Zone Closure | Admin-confirmed closure | 100% |
-| Extreme Heat | Temperature above 45°C | 30% |
+- Heavy rain
+- Moderate rain
+- Light rain
+- Severe AQI
+- Moderate AQI
+- Storm
+- Flood
+- Curfew
+- Earthquake
+- Landslide
+- Heatwave
+- Dense fog
+- High wind
 
-All triggers use live API data. No self-reporting. No manual verification.
+</details>
 
 ---
 
