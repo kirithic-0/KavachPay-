@@ -16,7 +16,7 @@ Guidewire DEVTrails 2026 | Team : The boys
 
 | # | Section |
 |---|---|
-| 1 | [What is KavachPay?](#-what-is-kavachpay) |
+| 1 | [What is KavachPay?](#what-is-kavachpay) |
 | 2 | [Who We Are Building For](#-who-we-are-building-for) |
 | 3 | [How It Works](#-how-it-works) |
 | 4 | [⭐Discussion Forums](#-discussion-forums-) |
@@ -24,20 +24,12 @@ Guidewire DEVTrails 2026 | Team : The boys
 | 6 | [Weekly Pricing](#-weekly-pricing) |
 | 7 | [KavachScore](#-kavachscore) |
 | 8 | [ML Models](#-ml-models) |
-| 9 | [Architecture](#-architecture) |
-| 10 | [Tech Stack](#-tech-stack) |
-| 11 | [Adversarial Defense and Anti-Spoofing Strategy](#-adversarial-defense-and-anti-spoofing-strategy) |
+| 9 | [Architecture](#%EF%B8%8F-architecture) |
+| 10 | [Tech Stack](#%EF%B8%8F-tech-stack) |
+| 11 | [Adversarial Defense and Anti-Spoofing Strategy](#%EF%B8%8F-adversarial-defense-and-anti-spoofing-strategy) |
 | 12 | [Repo Structure](#-repo-structure) |
-| 13 | [Project Timeline](#-project-timeline) |
+| 13 | [Project Timeline](#%EF%B8%8F-project-timeline) |
 | 14 | [Why KavachPay Matters](#-why-kavachpay-matters) |
-
-| 1 | [What is KavachPay?](#-what-is-kavachpay-1) |
-| 5 | [Disruption Triggers](#-disruption-triggers-1) |
-| 9 | [Architecture](#-architecture-1) |
-| 10 | [Tech Stack](#-tech-stack-1) |
-| 11 | [Adversarial Defense and Anti-Spoofing Strategy](#-adversarial-defense-and-anti-spoofing-strategy-1) |
-| 13 | [Project Timeline](#-project-timeline-1) |
----
 
 ##  What is KavachPay?
 
