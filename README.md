@@ -12,7 +12,7 @@ Guidewire DEVTrails 2026 | Team : The boys
 
 ---
 
-## 💡 What is KavachPay?
+##  What is KavachPay?
 
 KavachPay is a parametric income insurance platform built exclusively for Zomato and Swiggy delivery partners in Indian metro cities. It monitors weather and environmental disruptions in a worker's delivery zone in real time, verifies they were actively working and got affected, and transfers money directly to their UPI account — automatically, within minutes.
 
@@ -22,7 +22,7 @@ The entire flow — detection, verification, payout — runs without the worker 
 
 The platform is built around a weekly premium model starting at ₹49/week, a 12-layer fraud detection pipeline, and KavachScore — a proprietary trust metric that governs payout speed and premium rates for every worker.
 
-### 🌟 What makes KavachPay different
+### 🌟 What makes KavachPay different 🌟
 
 Most parametric insurance platforms stop at automation. KavachPay goes further.
 
@@ -31,6 +31,7 @@ We recognised early that no API can catch everything — a zone misclassified as
 That is why KavachPay ships with a built-in **Discussion Forum** — a community layer where workers can post, flag issues, and surface ground-level problems that data feeds cannot see. Issue posts that receive enough likes from other workers are automatically escalated to moderators for review. Individual complaints become collective evidence. Worker voices become platform intelligence.
 
 This is not a bolt-on feature. It is a core part of how KavachPay stays accurate, trusted, and honest over time.
+
 ---
 
 ## 👥 Who We Are Building For
@@ -166,6 +167,7 @@ graph TD
     F -- False report --> H[Post marked resolved, no action]:::outcome
     F -- Needs more info --> I[Moderator replies on post]:::outcome
 ```
+
 ---
 
 ## 🌧️ Disruption Triggers
@@ -183,6 +185,7 @@ graph TD
 - Heatwave
 - Dense fog
 - High wind
+  
 ---
 
 ## 💰 Weekly Pricing
@@ -231,7 +234,6 @@ The weekly premium is personalised to each worker using a trained ML model that 
 | 🏅 KavachScore | Their overall trust and reliability on the platform |
 | 📍 Daily distance | How far they ride on an average shift |
 
-
 ### 🔍 Fraud Detection Pipeline
 
 Every claim passes through independent verification layers before a payout is approved. No single flag blocks a claim — the system looks for patterns, not isolated anomalies.
@@ -251,6 +253,7 @@ Every claim passes through independent verification layers before a payout is ap
 ![Architecture](docs/techstack.png)
 
 ---
+
 ## 🛠️ Tech Stack
 
 | Layer | Technology | Purpose |
