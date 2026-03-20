@@ -91,7 +91,7 @@ Workers who pass all checks receive a UPI transfer within minutes. The amount de
 
 ---
 
-## 💬 Discussion Forums
+## ⭐ Discussion Forums ⭐
 
 KavachPay includes a lightweight community forum where delivery workers can post, communicate, and flag issues. Posts are tagged as either **General** (open discussion about gig work, zones, and platform updates) or **Issue** (specific problems like incorrect zone ratings or payment failures). Workers can like posts, and issue posts that cross a certain like threshold are automatically surfaced to moderators for manual review — turning individual complaints into collective evidence.
 
@@ -191,7 +191,35 @@ The score determines payout speed:
 A higher KavachScore also unlocks lower premiums over time, giving workers a real incentive to engage honestly with the system.
 
 ---
+## 🤖 ML Models
 
+KavachPay uses two core ML components — a premium calculator that prices risk fairly for each worker, and a fraud detection pipeline that protects the platform from abuse without penalising honest workers.
+
+### 💰 Premium Calculator
+
+The weekly premium is personalised to each worker using a trained ML model that weighs the following key factors:
+
+| Factor | What it captures |
+|---|---|
+| 🗺️ Zone risk | How disruption-prone the worker's delivery area is |
+| 📋 Past claims | Whether the worker has a high or low claim history |
+| ⏳ Tenure | How long they have been active on the platform |
+| 🏅 KavachScore | Their overall trust and reliability on the platform |
+| 📍 Daily distance | How far they ride on an average shift |
+
+
+### 🔍 Fraud Detection Pipeline
+
+Every claim passes through independent verification layers before a payout is approved. No single flag blocks a claim — the system looks for patterns, not isolated anomalies.
+
+| Layer | What it checks |
+|---|---|
+| 🟢 Work intent | Was the worker active before the disruption hit? |
+| 🟢 Zone correlation | Are other workers in the same zone also affected? |
+| 🟡 Claim frequency | Are they claiming at an unusual rate compared to peers? |
+| 🔴 Weather verification | Does live API data confirm the disruption occurred? |
+| 🔴 Payout consistency | Is the claimed amount realistic given their income? |
+---
 ## 🏗️ Architecture
 
 ![Architecture](docs/techstack.png)
