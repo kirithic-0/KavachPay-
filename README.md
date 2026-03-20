@@ -23,7 +23,26 @@ The entire flow — detection, verification, payout — happens without the work
 
 ---
 
-## 👤 Example — A day in the life of a KavachPay worker
+## 👥 Who We Are Building For
+
+India's food delivery workforce is one of the most financially vulnerable groups in the country. These are not casual workers — they are full-time earners who have built their livelihoods around platforms like Zomato and Swiggy, with no safety net when things go wrong.
+
+| | |
+|---|---|
+| 🎂 **Age range** | 18 – 35 years |
+| 🏙️ **Cities** | Bengaluru, Mumbai, Delhi, Chennai, Hyderabad |
+| 💸 **Weekly income** | ₹2,500 – ₹6,000 |
+| 📅 **Work pattern** | 6 to 10 hours a day, 5 to 7 days a week |
+| 📱 **Device** | Android smartphone, comfortable with UPI and app-based payments |
+| 🛡️ **Existing insurance** | None — completely excluded from formal products |
+
+### The reality they face
+
+Every monsoon season, a delivery worker loses multiple full working days to rain. Every AQI spike costs them hours they cannot recover. Every sudden curfew wipes out a day's earnings with zero warning. Traditional insurance products offer no help here — they require monthly premiums, lengthy claim paperwork, and proof of loss that a gig worker simply cannot produce.
+
+KavachPay is built specifically around how these workers actually earn and live — weekly income cycles, daily outdoor exposure, and zero tolerance for bureaucracy.
+
+### 👤 Example — A day in the life of a KavachPay worker
 
 <details>
 <summary>📋 Worker profile — Karan Mehta (CLICK HERE)</summary>
@@ -49,7 +68,6 @@ The entire flow — detection, verification, payout — happens without the work
 It is a Wednesday morning in July. Karan heads out for his shift in Dharavi. By 1:30 PM, heavy rain begins battering the zone. Orders dry up, roads flood, and Karan pulls over. He has earned ₹610 so far — less than half of what a normal Wednesday brings him.
 
 Here is what happens next.
-
 ```mermaid
 graph TD
     classDef user fill:#0f172a,stroke:#1e40af,stroke-width:2px,color:#fff;
@@ -72,7 +90,6 @@ graph TD
 ```
 
 Karan filed nothing. He made no call. By 1:52 PM — twenty-two minutes after the rain started — ₹1,774 was in his account. His KavachScore remains Green, his premium does not change, and he is covered again the following week for the same ₹68.
-
 ---
 
 ## ⚡ How It Works
@@ -224,6 +241,24 @@ Every claim passes through independent verification layers before a payout is ap
 ![Architecture](docs/techstack.png)
 
 ---
+## 🛠️ Tech Stack
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| 🎨 **Frontend** | React | Worker app, dashboard, admin interface |
+| 🎨 **Styling** | Tailwind CSS | UI components and responsive design |
+| ⚙️ **Backend** | Python / Flask | API routes, trigger engine, business logic |
+| 🗄️ **Database** | Firebase Firestore | Real-time data, worker profiles, claims |
+| 🤖 **ML / AI** | Python (scikit-learn) | Premium calculator, fraud detection, KavachScore |
+| 🌦️ **Weather** | IMD API | Live rainfall, temperature, storm alerts |
+| 🌫️ **Air Quality** | CPCB / WAQI API | Live AQI monitoring per city zone |
+| 🌊 **Disasters** | NDMA API | Flood and natural disaster alerts |
+| 🛵 **Platform** | Zomato / Swiggy API | Worker order activity and zone placement |
+| 📰 **News** | News API | Ground-level disruption and civic event alerts |
+| 💳 **Payments** | Razorpay (test mode) | Simulated UPI payouts to workers |
+| 🪪 **Verification** | DigiLocker | Aadhaar verification at onboarding |
+| ☁️ **Hosting** | Vercel + Render | Frontend and backend deployment |
+---
 
 ## 🛡️ Adversarial Defense and Anti-Spoofing Strategy
 
@@ -295,6 +330,7 @@ To successfully defraud KavachPay, a bad actor would need to:
 At that point — they were genuinely working in a disrupted zone. **That is not fraud. That is exactly who KavachPay is built to protect.**
 
 The system is not just resistant to GPS spoofing. It is structurally immune to it.
+
 
 ## 📁 Repo Structure
 
