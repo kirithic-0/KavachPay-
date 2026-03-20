@@ -133,7 +133,7 @@ For each worker in the affected zone, the system checks if they were active and 
 **Step 3 — Fraud checks run automatically**
 Twelve independent checks run in sequence: work intent, historical work patterns, zone-wide correlation, self-declaration, and KavachScore evaluation — all automated, all instant.
 
-**Step 4 — Payout fires**
+**Step 4 — Payout**
 Workers who pass all checks receive a UPI transfer within minutes. The amount depends on disruption severity. No human reviews it. No approval queue.
 
 ---
