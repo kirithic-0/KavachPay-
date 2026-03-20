@@ -395,4 +395,4 @@ The goal is simple: when something outside their control stops them from earning
 
 ---
 
-**🎥 Video:** *(link)*
+**🎥 Video:** *[(link)](https://youtu.be/HKZF3hCYf9Q?si=h6tOonJUrdXnJmyZ)*
