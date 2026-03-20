@@ -26,7 +26,7 @@ The entire flow — detection, verification, payout — happens without the work
 ## 👤 Example — A day in the life of a KavachPay worker
 
 <details>
-<summary>📋 Worker profile — Karan Mehta</summary>
+<summary>📋 Worker profile — Karan Mehta (CLICK HERE)</summary>
 
 | Field | Details |
 |---|---|
@@ -189,10 +189,13 @@ A higher KavachScore also unlocks lower premiums over time, giving workers a rea
 
 KavachPay uses two core ML components — a premium calculator that prices risk fairly for each worker, and a fraud detection pipeline that protects the platform from abuse without penalising honest workers.
 
+We would be retrainning  our two ML models every 2 months 🔧
+
 ### 💰 Premium Calculator
 
 The weekly premium is personalised to each worker using a trained ML model that weighs the following key factors:
 
+**Models** :Random Forest regressor , XGboost regressor
 | Factor | What it captures |
 |---|---|
 | 🗺️ Zone risk | How disruption-prone the worker's delivery area is |
@@ -205,6 +208,8 @@ The weekly premium is personalised to each worker using a trained ML model that 
 ### 🔍 Fraud Detection Pipeline
 
 Every claim passes through independent verification layers before a payout is approved. No single flag blocks a claim — the system looks for patterns, not isolated anomalies.
+
+**Models** :Randomforest classifier , Isolation forest ,Logistic regression
 
 | Layer | What it checks |
 |---|---|
