@@ -31,6 +31,12 @@ Guidewire DEVTrails 2026 | Team : The boys
 | 13 | [Project Timeline](#-project-timeline) |
 | 14 | [Why KavachPay Matters](#-why-kavachpay-matters) |
 
+| 1 | [What is KavachPay?](#-what-is-kavachpay-1) |
+| 5 | [Disruption Triggers](#-disruption-triggers-1) |
+| 9 | [Architecture](#-architecture-1) |
+| 10 | [Tech Stack](#-tech-stack-1) |
+| 11 | [Adversarial Defense and Anti-Spoofing Strategy](#-adversarial-defense-and-anti-spoofing-strategy-1) |
+| 13 | [Project Timeline](#-project-timeline-1) |
 ---
 
 ##  What is KavachPay?
