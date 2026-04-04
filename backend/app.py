@@ -5,8 +5,7 @@ import os
 # 1. Initialize Firebase FIRST before importing any routes
 # This is critical because routes may call firestore.client() at the module level
 if not firebase_admin._apps:
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    cred_path = os.path.join(current_dir, "firebase-credentials.json")
+    firebase_json = json.loads(os.environ["FIREBASE_SERVICE_ACCOUNT_JSON"])
     cred = credentials.Certificate(cred_path)
     firebase_admin.initialize_app(cred)
 
