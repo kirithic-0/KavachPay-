@@ -1,289 +1,1103 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
+import Policy from './Policy';
+import Claims from './Claims';
+import Chatbot from './Chatbot';
+import Forum from './Forum';
+import { useTheme, KavachLogo } from './App';
 
-const C = {
-    accent: "#2563EB", accentLight: "#EFF6FF",
-    bg: "#FFFFFF", bgSubtle: "#F9FAFB", bgMuted: "#F3F4F6",
-    text: "#111827", textMuted: "#6B7280", textLight: "#9CA3AF",
-    border: "#E5E7EB", success: "#059669", successLight: "#ECFDF5",
-    warning: "#D97706", warningLight: "#FFFBEB",
-    danger: "#DC2626", dangerLight: "#FEF2F2",
-    logoBlue: "#1A3A5C",
+// ─── API CONFIG ───
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+// ─── API CALLS (Person 2 — uncomment when backend ready) ───
+const api = {
+    // TODO: BACKEND — get worker profile
+    getWorker: async (workerId) => {
+        return await fetch(`${API_BASE}/api/worker/${workerId}`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }).then(r => r.json());
+    },
+    updateProfile: async (workerId, data) => {
+        return await fetch(`${API_BASE}/api/worker/${workerId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          body: JSON.stringify(data)
+        }).then(r => r.json());
+    },
+    updateZone: async (workerId, newZone) => {
+        return await fetch(`${API_BASE}/api/worker/${workerId}/zone`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          body: JSON.stringify({ zone: newZone })
+        }).then(r => r.json());
+    },
+    deleteAccount: async (workerId) => {
+        return await fetch(`${API_BASE}/api/worker/${workerId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }).then(r => r.json());
+    },
+    uploadPhoto: async (workerId, file) => {
+        const formData = new FormData();
+        formData.append('photo', file);
+        return await fetch(`${API_BASE}/api/worker/${workerId}/photo`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          body: formData
+        }).then(r => r.json());
+    },
+    getWorkerStats: async (workerId) => {
+        return await fetch(`${API_BASE}/api/worker/${workerId}/stats`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }).then(r => r.json());
+    },
+    getWorkerWeeklyIncome: async (workerId) => {
+        return await fetch(`${API_BASE}/api/worker/${workerId}/weekly-income`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }).then(r => r.json());
+    },
 };
 
-const EARNINGS_DATA = [
-    { day: "Mon", earned: 820, protected: 820 },
-    { day: "Tue", earned: 640, protected: 640 },
-    { day: "Wed", earned: 0, protected: 580 },
-    { day: "Thu", earned: 910, protected: 910 },
-    { day: "Fri", earned: 750, protected: 750 },
-    { day: "Sat", earned: 1100, protected: 1100 },
-    { day: "Sun", earned: 430, protected: 430 },
-];
+// ─── DESIGN TOKENS ───
+const C = {
+    accent: '#1A3A5C',
+    accentLight: '#F0F4F8',
+    accentBorder: '#D1E0EE',
+    navy: '#08101F',
+    bg: '#F9FAFB',
+    cardBg: '#FFFFFF',
+    cardBorder: '#D6E4FF',
+    text: '#111827',
+    textSec: '#374151',
+    textMuted: '#6B7280',
+    green: '#2E7D52',
+    greenLight: '#E8F5EE',
+    greenBorder: '#A8D5BC',
+    orange: '#C05C1A',
+    orangeLight: '#FFF0E6',
+    orangeBorder: '#FFCBA4',
+    red: '#B91C1C',
+    redLight: '#FEF0F0',
+    redBorder: '#FECACA',
+    purple: '#6D28D9',
+    purpleLight: '#F3EEFF',
+    purpleBorder: '#DDD6FE',
+};
 
-const KAVACH_SCORE = 700;
-const SCORE_MAX = 900;
+const T = {
+    en: {
+        brand: 'KavachPay',
+        home: 'Home', earnings: 'Earnings', score: 'Score',
+        alerts: 'Alerts', forum: 'Forum',
+        activePolicy: 'Active Policy', active: 'ACTIVE', paused: 'PAUSED',
+        weeklyCoverage: 'Weekly Coverage', premium: 'Weekly Premium',
+        avgIncome: 'Avg Weekly Income', avgDeliveries: 'Avg Daily Deliveries',
+        myPolicy: 'My Policy', myClaims: 'My Claims',
+        loanTitle: 'Instant Loan — Powered by KavachScore',
+        loanSub: 'No CIBIL required. Based entirely on your KavachScore.',
+        loanQualify: 'You qualify for up to',
+        loanBtn: 'View Loan Offers',
+        loanLow: 'Improve your KavachScore to unlock loan offers.',
+        loanPartner: 'In partnership with KreditBee, MoneyTap & CashE',
+        referralTitle: 'Your Referral Code',
+        referralSub: 'Share with a friend — they enroll, you get ₹10 off next renewal',
+        referralCopy: 'Copy', referralCopied: 'Copied!',
+        referralUsed: 'Referrals made', referralSaved: 'Total saved',
+        earningsTitle: 'Income Protection',
+        earningsSub: "This week's earnings vs weekly average",
+        earnedSoFar: 'Earned so far',
+        kavachCovers: 'KavachPay covers',
+        kavachCoversSub: 'if disruption hits today',
+        disruptionHistory: 'Disruption History',
+        scoreGoesUp: 'Score Goes Up', scoreGoesDown: 'Score Goes Down',
+        scoreTimeline: 'Score Timeline',
+        allNotifs: 'All Notifications', unread: 'unread',
+        profileTitle: 'My Profile',
+        profileAccount: 'Account Details',
+        profilePolicy: 'Policy Info',
+        profileSettings: 'Settings',
+        darkMode: 'Dark Mode', lightMode: 'Light Mode',
+        signOut: 'Sign Out',
+        editProfile: 'Edit Profile',
+        saveChanges: 'Save Changes',
+        cancelEdit: 'Cancel',
+        photoChange: 'Change Photo',
+        resignTitle: 'Close Account',
+        resignSub: 'Your data will be retained for 90 days then permanently deleted.',
+        resignBtn: 'Close My Account',
+        resignConfirm: 'Are you absolutely sure?',
+        resignConfirmSub: 'This will deactivate your policy immediately. Type DELETE to confirm.',
+        resignFinal: 'Yes, Close Account',
+        zoneUpdateTitle: 'Zone Updated',
+        zoneUpdateMsg: 'Based on your last 5 days of delivery activity, your zone has been automatically updated to',
+        zoneUpdateAccept: 'Accept Update',
+        zoneUpdateIgnore: 'Keep Current Zone',
+        eshramBadge: 'e-Shram', employerBadge: 'Employer Sponsored',
+        paid: 'Paid', notPaid: 'Not enrolled',
+        weeklyChart: 'Weekly Earnings vs Coverage',
+    },
+    hi: {
+        brand: 'KavachPay',
+        home: 'होम', earnings: 'कमाई', score: 'स्कोर',
+        alerts: 'अलर्ट', forum: 'फोरम',
+        activePolicy: 'सक्रिय पॉलिसी', active: 'सक्रिय', paused: 'रुकी हुई',
+        weeklyCoverage: 'साप्ताहिक कवरेज', premium: 'साप्ताहिक प्रीमियम',
+        avgIncome: 'औसत साप्ताहिक आय', avgDeliveries: 'औसत दैनिक डिलीवरी',
+        myPolicy: 'मेरी पॉलिसी', myClaims: 'मेरे दावे',
+        loanTitle: 'तत्काल ऋण — KavachScore द्वारा',
+        loanSub: 'CIBIL की जरूरत नहीं। KavachScore पर आधारित।',
+        loanQualify: 'आप तक के लिए योग्य हैं',
+        loanBtn: 'ऋण ऑफर देखें',
+        loanLow: 'ऋण ऑफर के लिए KavachScore सुधारें।',
+        loanPartner: 'KreditBee, MoneyTap & CashE के साथ',
+        referralTitle: 'आपका रेफरल कोड',
+        referralSub: 'मित्र के साथ साझा करें — नामांकन पर ₹10 छूट',
+        referralCopy: 'कॉपी', referralCopied: 'कॉपी हो गया!',
+        referralUsed: 'रेफरल', referralSaved: 'कुल बचत',
+        earningsTitle: 'आय सुरक्षा',
+        earningsSub: 'इस सप्ताह की कमाई बनाम साप्ताहिक औसत',
+        earnedSoFar: 'अब तक कमाया',
+        kavachCovers: 'KavachPay कवर करता है',
+        kavachCoversSub: 'आज व्यवधान होने पर',
+        disruptionHistory: 'व्यवधान इतिहास',
+        scoreGoesUp: 'स्कोर कैसे बढ़ता है', scoreGoesDown: 'स्कोर कैसे घटता है',
+        scoreTimeline: 'स्कोर टाइमलाइन',
+        allNotifs: 'सभी सूचनाएं', unread: 'अपठित',
+        profileTitle: 'मेरी प्रोफ़ाइल',
+        profileAccount: 'खाता विवरण',
+        profilePolicy: 'पॉलिसी जानकारी',
+        profileSettings: 'सेटिंग्स',
+        darkMode: 'डार्क मोड', lightMode: 'लाइट मोड',
+        signOut: 'साइन आउट',
+        editProfile: 'प्रोफ़ाइल संपादित करें',
+        saveChanges: 'परिवर्तन सहेजें',
+        cancelEdit: 'रद्द करें',
+        photoChange: 'फ़ोटो बदलें',
+        resignTitle: 'खाता बंद करें',
+        resignSub: 'आपका डेटा 90 दिनों के लिए रखा जाएगा फिर हटा दिया जाएगा।',
+        resignBtn: 'मेरा खाता बंद करें',
+        resignConfirm: 'क्या आप बिल्कुल सुनिश्चित हैं?',
+        resignConfirmSub: 'पुष्टि के लिए DELETE टाइप करें।',
+        resignFinal: 'हां, खाता बंद करें',
+        zoneUpdateTitle: 'क्षेत्र अपडेट',
+        zoneUpdateMsg: 'पिछले 5 दिनों की डिलीवरी गतिविधि के आधार पर, आपका क्षेत्र स्वचालित रूप से अपडेट किया गया है',
+        zoneUpdateAccept: 'अपडेट स्वीकार करें',
+        zoneUpdateIgnore: 'वर्तमान क्षेत्र रखें',
+        eshramBadge: 'e-Shram', employerBadge: 'नियोक्ता प्रायोजित',
+        paid: 'भुगतान', notPaid: 'नामांकित नहीं',
+        weeklyChart: 'साप्ताहिक कमाई बनाम कवरेज',
+    },
+    ta: {
+        brand: 'KavachPay',
+        home: 'முகப்பு', earnings: 'வருமானம்', score: 'ஸ்கோர்',
+        alerts: 'எச்சரிக்கைகள்', forum: 'பேச்சரங்கம்',
+        activePolicy: 'செயலில் பாலிசி', active: 'செயலில்', paused: 'இடைநிறுத்தம்',
+        weeklyCoverage: 'வாராந்திர கவரேஜ்', premium: 'வாராந்திர பிரீமியம்',
+        avgIncome: 'சராசரி வாராந்திர வருமானம்', avgDeliveries: 'சராசரி தினசரி டெலிவரி',
+        myPolicy: 'என் பாலிசி', myClaims: 'என் கோரிக்கைகள்',
+        loanTitle: 'உடனடி கடன் — KavachScore அடிப்படையில்',
+        loanSub: 'CIBIL தேவையில்லை. KavachScore மட்டும்.',
+        loanQualify: 'நீங்கள் தகுதி பெறுகிறீர்கள்',
+        loanBtn: 'கடன் சலுகைகள் காண',
+        loanLow: 'கடன் சலுகைகளை திறக்க KavachScore மேம்படுத்தவும்.',
+        loanPartner: 'KreditBee, MoneyTap & CashE உடன்',
+        referralTitle: 'உங்கள் பரிந்துரை குறியீடு',
+        referralSub: 'நண்பருடன் பகிரவும் — சேர்ந்தால் ₹10 தள்ளுபடி',
+        referralCopy: 'நகல்', referralCopied: 'நகலெடுக்கப்பட்டது!',
+        referralUsed: 'பரிந்துரைகள்', referralSaved: 'மொத்த சேமிப்பு',
+        earningsTitle: 'வருமான பாதுகாப்பு',
+        earningsSub: 'இந்த வாரத்தின் வருமானம் vs சராசரி',
+        earnedSoFar: 'இதுவரை சம்பாதித்தது',
+        kavachCovers: 'KavachPay கவர் செய்கிறது',
+        kavachCoversSub: 'இன்று இடையூறு ஏற்பட்டால்',
+        disruptionHistory: 'இடையூறு வரலாறு',
+        scoreGoesUp: 'ஸ்கோர் உயரும்', scoreGoesDown: 'ஸ்கோர் குறையும்',
+        scoreTimeline: 'ஸ்கோர் காலவரிசை',
+        allNotifs: 'அனைத்து அறிவிப்புகள்', unread: 'படிக்காதவை',
+        profileTitle: 'என் சுயவிவரம்',
+        profileAccount: 'கணக்கு விவரங்கள்',
+        profilePolicy: 'பாலிசி தகவல்',
+        profileSettings: 'அமைப்புகள்',
+        darkMode: 'இருண்ட பயன்முறை', lightMode: 'ஒளி பயன்முறை',
+        signOut: 'வெளியேறு',
+        editProfile: 'சுயவிவரம் திருத்து',
+        saveChanges: 'மாற்றங்களை சேமி',
+        cancelEdit: 'ரத்து செய்',
+        photoChange: 'புகைப்படம் மாற்று',
+        resignTitle: 'கணக்கை மூடு',
+        resignSub: 'உங்கள் தரவு 90 நாட்கள் வைக்கப்படும் பின்னர் நிரந்தரமாக நீக்கப்படும்.',
+        resignBtn: 'என் கணக்கை மூடு',
+        resignConfirm: 'நிச்சயமாக உறுதியா?',
+        resignConfirmSub: 'உறுதிப்படுத்த DELETE என்று தட்டச்சு செய்யவும்.',
+        resignFinal: 'ஆம், கணக்கை மூடு',
+        zoneUpdateTitle: 'மண்டலம் புதுப்பிக்கப்பட்டது',
+        zoneUpdateMsg: 'கடந்த 5 நாட்கள் டெலிவரி செயல்பாட்டின் அடிப்படையில், உங்கள் மண்டலம் தானாக புதுப்பிக்கப்பட்டது',
+        zoneUpdateAccept: 'புதுப்பிப்பை ஏற்கவும்',
+        zoneUpdateIgnore: 'தற்போதைய மண்டலத்தை வைத்திரு',
+        eshramBadge: 'e-Shram', employerBadge: 'முதலாளி வழங்கல்',
+        paid: 'செலுத்தப்பட்டது', notPaid: 'சேரவில்லை',
+        weeklyChart: 'வாராந்திர வருமானம் vs கவரேஜ்',
+    }
+};
 
-const SCORE_ITEMS = [
-    { label: "Policy Active", done: true },
-    { label: "Platform Connected", done: true },
-    { label: "KYC Verified", done: true },
-    { label: "UPI Linked", done: true },
-    { label: "Employee ID Verified", done: true },
-    { label: "Zone Verified", done: false },
-    { label: "6-Month Activity", done: false },
-    { label: "Zero Missed Payments", done: true },
-    { label: "Profile Complete", done: false },
-];
+const LangToggle = ({ lang, setLang }) => (
+    <div style={{ display: 'flex', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: 3, gap: 2 }}>
+        {[{ code: 'en', label: 'EN' }, { code: 'hi', label: 'हि' }, { code: 'ta', label: 'த' }].map(l => (
+            <button key={l.code} onClick={() => setLang(l.code)}
+                style={{ backgroundColor: lang === l.code ? 'white' : 'transparent', color: lang === l.code ? C.accent : 'white', border: 'none', padding: '5px 10px', borderRadius: 16, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                {l.label}
+            </button>
+        ))}
+    </div>
+);
 
-// ─── Live Notifications ───────────────────────────────────────────────────────
-const NOTIFICATIONS = [
-    { id: 1, type: "payout", title: "Payout Credited", body: "₹1,500 insured for Heavy Rain (HRA) in Koramangala. Credited to your UPI.", time: "Just now", read: false },
-    { id: 2, type: "alert", title: "Zone Alert — Koramangala", body: "Moderate Rain (MRA) detected in your zone. Coverage auto-activated.", time: "12 min ago", read: false },
-    { id: 3, type: "payout", title: "Payout Credited", body: "₹800 insured for App Outage (Swiggy down 3.2 hrs). Credited to your UPI.", time: "2 days ago", read: true },
-    { id: 4, type: "info", title: "Policy Renewed", body: "Your Individual Cover policy has been auto-renewed for Dec 2025.", time: "5 days ago", read: true },
-    { id: 5, type: "alert", title: "Air Quality Alert", body: "Severe Air Quality (SAQ) warning in Bengaluru. Stay safe — coverage active.", time: "1 week ago", read: true },
-];
+export default function Dashboard({ worker, setWorker, onLogout, lang: propLang, setLang: propSetLang }) {
+    const { theme, toggleTheme } = useTheme();
+    const [page, setPage] = useState('dashboard');
+    const [tab, setTab] = useState('home');
+    const [lang, setLang] = useState(propLang || 'en');
+    const [showChat, setShowChat] = useState(false);
+    const [showLoanModal, setShowLoanModal] = useState(false);
+    const [referralCopied, setReferralCopied] = useState(false);
+    const [animatedScore, setAnimatedScore] = useState(0);
+    const [expandedNotif, setExpandedNotif] = useState(null);
+    const [showZoneUpdate, setShowZoneUpdate] = useState(true);
+    const [zoneUpdated, setZoneUpdated] = useState(false);
+    const [editMode, setEditMode] = useState(false);
+    const [editForm, setEditForm] = useState({});
+    const [photoUrl, setPhotoUrl] = useState(null);
+    const [photoUploading, setPhotoUploading] = useState(false);
+    const [resignStep, setResignStep] = useState(0);
+    const [resignInput, setResignInput] = useState('');
+    const [savingProfile, setSavingProfile] = useState(false);
+    const [loading, setLoading] = useState(true);
 
-function scoreColor(s) { return s >= 750 ? "#059669" : s >= 500 ? "#D97706" : "#DC2626"; }
-function scoreLabel(s) { return s >= 750 ? "Excellent" : s >= 600 ? "Good" : s >= 400 ? "Fair" : "Needs Work"; }
+    const [earningsData, setEarningsData] = useState([]);
+    const [earnedSoFar, setEarnedSoFar] = useState(0);
+    const [remainingCoverage, setRemainingCoverage] = useState(0);
+    const [earningsPercent, setEarningsPercent] = useState(0);
+    const [disruptionHistory, setDisruptionHistory] = useState([]);
+    const [notifications, setNotifications] = useState([]);
+    const [scoreHistory, setScoreHistory] = useState([]);
+    const [scoreProgress, setScoreProgress] = useState(0);
 
-const TABS = [
-    { id: "home", label: "Home", icon: "▦" },
-    { id: "earnings", label: "Earnings", icon: "≋" },
-    { id: "score", label: "Score", icon: "◉" },
-];
+    const photoInputRef = useRef(null);
+    const t = T[lang] || T.en;
 
-export default function Dashboard({ user, onLogout, onNavigate }) {
-    const [tab, setTab] = useState("home");
-    const [showNotifs, setShowNotifs] = useState(false);
-    const [notifs, setNotifs] = useState(NOTIFICATIONS);
-    const [showBanner, setShowBanner] = useState(true); // login payout notification
+    // ─── City→alternate zone map (GPS-suggested zones per city) ───
+    const CITY_ALT_ZONES = {
+        'Bangalore': 'HSR Layout, Bangalore',
+        'Chennai': 'Anna Nagar, Chennai',
+        'Mumbai': 'Andheri, Mumbai',
+        'Delhi': 'Lajpat Nagar, Delhi',
+        'Hyderabad': 'Banjara Hills, Hyderabad',
+        'Kolkata': 'Salt Lake, Kolkata',
+        'Pune': 'Hinjewadi, Pune',
+        'Noida': 'Sector 62, Noida',
+        'Gurgaon': 'Cyber City, Gurgaon',
+        'Ahmedabad': 'Satellite, Ahmedabad',
+        'Kochi': 'Kakkanad, Kochi',
+        'Jaipur': 'Vaishali Nagar, Jaipur',
+        'Indore': 'Vijay Nagar, Indore',
+        'Surat': 'Adajan, Surat',
+        'Coimbatore': 'Peelamedu, Coimbatore',
+        'Vizag': 'MVP Colony, Vizag',
+    };
 
-    const u = user || { name: "Ravi Kumar", platform: "Swiggy", workerId: "KOR-3847261", employeeId: "SWG-EMP-001", city: "Bengaluru", zone: "Koramangala" };
-    const unread = notifs.filter((n) => !n.read).length;
-    const maxE = Math.max(...EARNINGS_DATA.map((d) => d.protected));
-    const col = scoreColor(KAVACH_SCORE);
+    // ─── Worker Data ───
+    const name = worker?.name || 'Ravi Kumar';
+    const phone = worker?.phone || '9876543210';
+    const email = worker?.email || 'ravi@kavachpay.in';
+    const workerCity = worker?.city || (worker?.zone?.includes(',') ? worker.zone.split(',')[1].trim() : 'Bangalore');
 
-    const markAllRead = () => setNotifs((n) => n.map((x) => ({ ...x, read: true })));
+    // ─── Suggested new zone (GPS-based, always same city as worker) ───
+    const suggestedZone = (() => {
+        const alt = CITY_ALT_ZONES[workerCity];
+        // Don't suggest the same zone the worker is already in
+        if (alt && alt !== (worker?.zone || 'Koramangala, Bangalore')) return alt;
+        // Fallback: first zone in city that isn't the current one
+        const allZonesInCity = Object.entries(CITY_ALT_ZONES)
+            .filter(([c]) => c === workerCity)
+            .map(([, z]) => z);
+        return allZonesInCity[0] || (worker?.zone || 'Koramangala, Bangalore');
+    })();
 
-    const typeStyle = (type) => ({
-        payout: { bg: C.successLight, border: "#A7F3D0", dot: C.success },
-        alert: { bg: C.warningLight, border: "#FDE68A", dot: C.warning },
-        info: { bg: C.accentLight, border: "#BFDBFE", dot: C.accent },
-    }[type] || { bg: C.bgMuted, border: C.border, dot: C.textLight });
+    const zone = zoneUpdated ? suggestedZone : (worker?.zone || 'Koramangala, Bangalore');
+    const city = zone.includes(',') ? zone.split(',')[1].trim() : workerCity;
+    const platform = worker?.platform || 'Swiggy';
+    const premium = worker?.premium || 59;
+    const coverage = worker?.coverage || 1200;
+    const avgIncome = worker?.avg_income || 1840;
+    const avgDeliveries = worker?.avg_deliveries || 18;
+    const policyType = worker?.policy_type || 'individual';
+    const referralCode = worker?.referral_code || 'RAVI-K7X2';
+    const eshramId = worker?.eshram_id || '';
+    const employeeId = worker?.employee_id || 'KOR-3847261';
+    const score = animatedScore;
 
+    useEffect(() => {
+        let start = 0;
+        const step = score / (1200 / 16);
+        const timer = setInterval(() => {
+            start += step;
+            if (start >= worker?.kavach_score || 750) { setAnimatedScore(worker?.kavach_score || 750); clearInterval(timer); }
+            else setAnimatedScore(Math.round(start));
+        }, 16);
+        return () => clearInterval(timer);
+    }, [worker?.kavach_score]);
+
+    useEffect(() => {
+        if (editMode) {
+            setEditForm({ name, email, phone, city, zone, platform, upiId: worker?.upiId || 'ravi@upi' });
+        }
+    }, [editMode]);
+
+    useEffect(() => {
+        const loadEverything = async () => {
+            if (!worker?.uid) return;
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.error("No auth token found in localStorage");
+                return;
+            }
+            try {
+                console.log("Dashboard: Loading data for worker ", worker.uid);
+                
+                // Fetch fresh worker profile to wire everything to firebase
+                const freshWorker = await api.getWorker(worker.uid);
+                if (freshWorker && !freshWorker.error) {
+                    setWorker(freshWorker);
+                }
+
+                const income = await api.getWorkerWeeklyIncome(worker.uid);
+                if (income && income.weekly_income) {
+                  setEarningsData(income.weekly_income.map(w => ({ week: w.week, earned: w.income, coverage: worker.coverage || 1200 })));
+                  const lastWeek = income.weekly_income[income.weekly_income.length - 1];
+                  setEarnedSoFar(lastWeek?.income || 0);
+                }
+
+                const claims = await fetch(`${API_BASE}/api/claims/${worker.uid}`, { 
+                  headers: { 'Authorization': `Bearer ${token}` }
+                }).then(r => r.json());
+                if (claims && claims.claims) {
+                  setDisruptionHistory(claims.claims.map(c => ({
+                    date: c.date,
+                    event: c.event,
+                    severity: c.severity,
+                    payout: c.payout,
+                    paid: c.status === 'paid',
+                    txn: c.txn
+                  })));
+                }
+
+                const notifs = await fetch(`${API_BASE}/api/worker/${worker.uid}/notifications`, {
+                   headers: { 'Authorization': `Bearer ${token}` }
+                }).then(r => r.json());
+                if (notifs && notifs.notifications) setNotifications(notifs.notifications);
+                
+                const stats = await api.getWorkerStats(worker.uid);
+                if (stats && stats.avg_score) {
+                    setAnimatedScore(stats.avg_score);
+                    
+                    // Populate mock score timeline history reaching the current score
+                    setScoreHistory([
+                        { date: "Feb 01", score: Math.max(0, stats.avg_score - 100) },
+                        { date: "Feb 15", score: Math.max(0, stats.avg_score - 80) },
+                        { date: "Mar 01", score: Math.max(0, stats.avg_score - 50) },
+                        { date: "Mar 15", score: Math.max(0, stats.avg_score - 70) }, // A slight dip for realism
+                        { date: "Apr 01", score: Math.max(0, stats.avg_score - 20) },
+                        { date: "Apr 15", score: stats.avg_score }, // Current score
+                    ]);
+                }
+
+                setLoading(false);
+            } catch (e) {
+                console.error("Dashboard Load Error: ", e);
+                setLoading(false);
+            }
+        };
+        loadEverything();
+    }, [worker?.uid]);
+
+    useEffect(() => {
+        const p = Math.round((earnedSoFar / avgIncome) * 100);
+        setEarningsPercent(p);
+        setRemainingCoverage(Math.max(0, coverage - earnedSoFar));
+    }, [earnedSoFar, avgIncome, coverage]);
+
+    const getScoreColor = () => score >= 750 ? C.green : score >= 500 ? C.orange : C.red;
+    const getScoreTier = () => score >= 750 ? 'Trusted Worker' : score >= 500 ? 'Standard Worker' : 'Under Review';
+    const getLoanAmount = () => score >= 800 ? '₹25,000' : score >= 750 ? '₹15,000' : score >= 650 ? '₹8,000' : null;
+
+
+    const unreadCount = notifications.filter(n => !n.read).length;
+
+    const card = (children, mb = '12px', extra = {}) => (
+        <div style={{ backgroundColor: C.cardBg, borderRadius: 14, padding: '18px', marginBottom: mb, border: `1px solid ${C.cardBorder}`, boxShadow: '0 2px 12px rgba(91,110,245,0.06)', ...extra }}>
+            {children}
+        </div>
+    );
+
+    const CustomTooltip = ({ active, payload, label }) => {
+        if (active && payload?.length) return (
+            <div style={{ backgroundColor: C.cardBg, border: `1px solid ${C.cardBorder}`, borderRadius: 10, padding: '10px 14px', boxShadow: '0 4px 12px rgba(91,110,245,0.1)' }}>
+                <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 4 }}>{label}</p>
+                {payload.map((p, i) => <p key={i} style={{ color: p.color, fontSize: 13, fontWeight: 700 }}>{p.name}: {p.value}</p>)}
+            </div>
+        );
+        return null;
+    };
+
+    const handleCopyReferral = () => {
+        navigator.clipboard?.writeText(referralCode).catch(() => { });
+        setReferralCopied(true);
+        setTimeout(() => setReferralCopied(false), 2000);
+    };
+
+    const handleZoneAccept = async () => {
+        await api.updateZone(worker?.uid, suggestedZone);
+        setZoneUpdated(true);
+        setShowZoneUpdate(false);
+        if (setWorker) setWorker(w => ({ ...w, zone: suggestedZone }));
+    };
+
+    const handleSaveProfile = async () => {
+        setSavingProfile(true);
+        await api.updateProfile(worker?.uid, editForm);
+        if (setWorker) setWorker(w => ({ ...w, ...editForm }));
+        setSavingProfile(false);
+        setEditMode(false);
+    };
+
+    const handlePhotoChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setPhotoUploading(true);
+        const result = await api.uploadPhoto(worker?.id, file);
+        if (result.success) setPhotoUrl(result.url);
+        setPhotoUploading(false);
+    };
+
+    const handleResign = async () => {
+        if (resignInput !== 'DELETE') return;
+        await api.deleteAccount(worker?.id);
+        onLogout();
+    };
+
+    if (loading || !worker) return <div style={{ minHeight: '100vh', backgroundColor: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p>Synchronizing with Kavach backend...</p></div>;
+
+    if (page === 'policy') return <Policy worker={{ ...worker, zone }} onBack={() => setPage('dashboard')} lang={lang} setLang={setLang} />;
+    if (page === 'claims') return <Claims worker={{ ...worker, zone }} onBack={() => setPage('dashboard')} lang={lang} setLang={setLang} />;
+
+    // ─── PROFILE PAGE ───
+    if (page === 'profile') return (
+        <div style={{ backgroundColor: C.bg, minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
+            <div style={{ background: 'linear-gradient(170deg, #08101F 0%, #0D1829 100%)', padding: '14px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <KavachLogo size={28} light />
+                </div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <LangToggle lang={lang} setLang={setLang} />
+                    <button onClick={() => setPage('dashboard')} style={{ backgroundColor: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>← Back</button>
+                </div>
+            </div>
+
+            <div style={{ padding: '24px 16px', maxWidth: 480, margin: '0 auto' }}>
+                <p style={{ color: C.text, fontSize: 20, fontWeight: 800, marginBottom: 16 }}>{t.profileTitle}</p>
+
+                {/* Profile Header */}
+                <div style={{ background: 'linear-gradient(170deg, #08101F 0%, #0D1829 100%)', borderRadius: 18, padding: 24, marginBottom: 14, color: 'white', boxShadow: '0 4px 24px rgba(91,110,245,0.3)', textAlign: 'center' }}>
+                    {/* Avatar */}
+                    <div style={{ position: 'relative', display: 'inline-block', marginBottom: 14 }}>
+                        <div style={{ width: 80, height: 80, borderRadius: '50%', border: '3px solid rgba(255,255,255,0.3)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.15)', cursor: 'pointer' }}
+                            onClick={() => photoInputRef.current?.click()}>
+                            {photoUrl
+                                ? <img src={photoUrl} alt="profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                : <p style={{ color: 'white', fontWeight: 800, fontSize: 28 }}>{name[0]}</p>
+                            }
+                            {photoUploading && (
+                                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
+                                    <div style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid white', borderTop: '2px solid transparent', animation: 'spin 1s linear infinite' }} />
+                                </div>
+                            )}
+                        </div>
+                        <div style={{ position: 'absolute', bottom: 0, right: 0, width: 24, height: 24, backgroundColor: '#34D399', borderRadius: '50%', border: '2px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                            onClick={() => photoInputRef.current?.click()}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
+                        </div>
+                    </div>
+                    <input ref={photoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
+                    <p style={{ color: 'white', fontWeight: 800, fontSize: 20, marginBottom: 4 }}>{name}</p>
+                    <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13 }}>{platform} · {zone.split(',')[0]}</p>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                        <div style={{ background: 'rgba(255,255,255,0.15)', padding: '3px 12px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.2)' }}>
+                            <p style={{ fontSize: 11, fontWeight: 700, color: 'white' }}>Score: {score}</p>
+                        </div>
+                        {eshramId && <div style={{ background: 'rgba(240,165,0,0.3)', padding: '3px 12px', borderRadius: 20 }}><p style={{ fontSize: 11, fontWeight: 700, color: 'white' }}>{t.eshramBadge}</p></div>}
+                        {policyType === 'employer' && <div style={{ background: 'rgba(46,125,82,0.4)', padding: '3px 12px', borderRadius: 20 }}><p style={{ fontSize: 11, fontWeight: 700, color: 'white' }}>{t.employerBadge}</p></div>}
+                    </div>
+                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 8 }}>Tap photo to change</p>
+                </div>
+
+                {/* Edit / View Toggle */}
+                {!editMode ? (
+                    <>
+                        {card(<>
+                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.profileAccount}</p>
+                            {[
+                                { label: 'Full Name', value: name },
+                                { label: 'Email', value: email },
+                                { label: 'Phone', value: '+91 ' + phone },
+                                { label: 'Employee ID', value: employeeId },
+                                { label: 'Platform', value: platform },
+                                { label: 'City', value: city },
+                                { label: 'Zone', value: zone },
+                                { label: 'UPI ID', value: worker?.upiId || 'ravi@upi' },
+                                ...(eshramId ? [{ label: 'e-Shram UAN', value: eshramId }] : []),
+                            ].map((item, i, arr) => (
+                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: i < arr.length - 1 ? `1px solid ${C.cardBorder}` : 'none' }}>
+                                    <p style={{ color: C.textMuted, fontSize: 13 }}>{item.label}</p>
+                                    <p style={{ color: C.text, fontWeight: 600, fontSize: 13, textAlign: 'right', maxWidth: '55%' }}>{item.value}</p>
+                                </div>
+                            ))}
+                        </>)}
+
+                        <button onClick={() => setEditMode(true)}
+                            style={{ width: '100%', background: 'linear-gradient(135deg, #1A3A5C, #08101F)', color: 'white', padding: 14, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: 12, boxShadow: '0 4px 12px rgba(91,110,245,0.25)' }}>
+                            {t.editProfile}
+                        </button>
+                    </>
+                ) : (
+                    // ─── EDIT FORM ───
+                    card(<>
+                        <p style={{ color: C.text, fontWeight: 700, fontSize: 15, marginBottom: 16 }}>{t.editProfile}</p>
+                        <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 16 }}>Aadhaar number and Employee ID cannot be changed.</p>
+
+                        {[
+                            { key: 'name', label: 'Full Name', type: 'text', placeholder: 'Your full name' },
+                            { key: 'email', label: 'Email Address', type: 'email', placeholder: 'your@email.com' },
+                            { key: 'phone', label: 'Phone Number', type: 'tel', placeholder: '10-digit number' },
+                            { key: 'upiId', label: 'UPI ID', type: 'text', placeholder: 'yourname@upi' },
+                            { key: 'platform', label: 'Platform', type: 'select', options: ['Swiggy', 'Zomato'] },
+                        ].map(field => (
+                            <div key={field.key} style={{ marginBottom: 14 }}>
+                                <label style={{ display: 'block', color: C.textSec, fontWeight: 600, fontSize: 13, marginBottom: 6 }}>{field.label}</label>
+                                {field.type === 'select' ? (
+                                    <select value={editForm[field.key] || ''} onChange={e => setEditForm(f => ({ ...f, [field.key]: e.target.value }))}
+                                        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${C.accentBorder}`, fontSize: 14, outline: 'none', backgroundColor: 'white', color: C.text, fontFamily: 'Inter, sans-serif' }}>
+                                        {field.options.map(o => <option key={o}>{o}</option>)}
+                                    </select>
+                                ) : (
+                                    <input type={field.type} placeholder={field.placeholder} value={editForm[field.key] || ''}
+                                        onChange={e => setEditForm(f => ({ ...f, [field.key]: e.target.value }))}
+                                        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${C.accentBorder}`, fontSize: 14, boxSizing: 'border-box', outline: 'none', fontFamily: 'Inter, sans-serif', color: C.text }} />
+                                )}
+                            </div>
+                        ))}
+
+                        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                            <button onClick={() => setEditMode(false)} style={{ flex: 1, backgroundColor: C.cardBg, color: C.accent, padding: 13, borderRadius: 10, border: `1.5px solid ${C.accentBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t.cancelEdit}</button>
+                            <button onClick={handleSaveProfile} disabled={savingProfile}
+                                style={{ flex: 2, background: 'linear-gradient(135deg, #1A3A5C, #08101F)', color: 'white', padding: 13, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: savingProfile ? 0.7 : 1 }}>
+                                {savingProfile ? 'Saving...' : t.saveChanges}
+                            </button>
+                        </div>
+                    </>)
+                )}
+
+                {/* Policy Info */}
+                {card(<>
+                    <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.profilePolicy}</p>
+                    {[
+                        { label: 'Policy ID', value: 'KVP-' + phone.slice(-6) },
+                        { label: 'Policy Type', value: policyType === 'individual' ? 'Individual' : 'Employer Sponsored' },
+                        { label: 'Weekly Premium', value: policyType === 'employer' ? 'FREE' : '₹' + premium },
+                        { label: 'Weekly Coverage', value: '₹' + coverage },
+                        { label: 'KavachScore', value: score + ' — ' + getScoreTier() },
+                        { label: 'Referral Code', value: referralCode },
+                    ].map((item, i, arr) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: i < arr.length - 1 ? `1px solid ${C.cardBorder}` : 'none' }}>
+                            <p style={{ color: C.textMuted, fontSize: 13 }}>{item.label}</p>
+                            <p style={{ color: C.text, fontWeight: 600, fontSize: 13 }}>{item.value}</p>
+                        </div>
+                    ))}
+                </>)}
+
+                {/* Settings */}
+                {card(<>
+                    <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.profileSettings}</p>
+
+                    {/* Dark Mode Toggle */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: `1px solid ${C.cardBorder}` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: C.accentLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    {theme === 'dark'
+                                        ? <><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /></>
+                                        : <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                                    }
+                                </svg>
+                            </div>
+                            <div>
+                                <p style={{ color: C.text, fontWeight: 600, fontSize: 14 }}>{theme === 'dark' ? t.lightMode : t.darkMode}</p>
+                                <p style={{ color: C.textMuted, fontSize: 12, marginTop: 2 }}>Switch theme</p>
+                            </div>
+                        </div>
+                        <button onClick={toggleTheme}
+                            style={{ width: 46, height: 24, borderRadius: 12, backgroundColor: theme === 'dark' ? C.accent : '#E5E7EB', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background-color 0.2s ease' }}>
+                            <div style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: 3, left: theme === 'dark' ? 25 : 3, transition: 'left 0.2s ease', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
+                        </button>
+                    </div>
+
+                    {/* Language */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: `1px solid ${C.cardBorder}` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: C.accentLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
+                            </div>
+                            <div>
+                                <p style={{ color: C.text, fontWeight: 600, fontSize: 14 }}>Language</p>
+                                <p style={{ color: C.textMuted, fontSize: 12, marginTop: 2 }}>EN / हि / த</p>
+                            </div>
+                        </div>
+                        <LangToggle lang={lang} setLang={setLang} />
+                    </div>
+
+                    {/* Sign Out */}
+                    <div style={{ paddingTop: 12, marginBottom: 4 }}>
+                        <button onClick={onLogout}
+                            style={{ width: '100%', backgroundColor: C.redLight, color: C.red, padding: 13, borderRadius: 10, border: `1px solid ${C.redBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                            {t.signOut}
+                        </button>
+                    </div>
+                </>)}
+
+                {/* Resignation / Close Account */}
+                {card(<>
+                    <p style={{ color: C.red, fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{t.resignTitle}</p>
+                    <p style={{ color: C.textMuted, fontSize: 13, marginBottom: 14, lineHeight: 1.6 }}>{t.resignSub}</p>
+
+                    {resignStep === 0 && (
+                        <button onClick={() => setResignStep(1)}
+                            style={{ width: '100%', backgroundColor: C.redLight, color: C.red, padding: 12, borderRadius: 10, border: `1px solid ${C.redBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                            {t.resignBtn}
+                        </button>
+                    )}
+
+                    {resignStep === 1 && (
+                        <div className="fade-in">
+                            <div style={{ backgroundColor: C.redLight, borderRadius: 10, padding: '12px 14px', marginBottom: 12, border: `1px solid ${C.redBorder}` }}>
+                                <p style={{ color: C.red, fontWeight: 700, fontSize: 13 }}>{t.resignConfirm}</p>
+                                <p style={{ color: C.red, fontSize: 12, marginTop: 4 }}>{t.resignConfirmSub}</p>
+                            </div>
+                            <input type="text" placeholder='Type "DELETE" to confirm' value={resignInput} onChange={e => setResignInput(e.target.value)}
+                                style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${C.redBorder}`, fontSize: 14, boxSizing: 'border-box', outline: 'none', fontFamily: 'Inter, sans-serif', color: C.text, marginBottom: 10 }} />
+                            <div style={{ display: 'flex', gap: 10 }}>
+                                <button onClick={() => { setResignStep(0); setResignInput(''); }}
+                                    style={{ flex: 1, backgroundColor: C.cardBg, color: C.accent, padding: 12, borderRadius: 10, border: `1.5px solid ${C.accentBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                                    Cancel
+                                </button>
+                                <button onClick={handleResign} disabled={resignInput !== 'DELETE'}
+                                    style={{ flex: 2, backgroundColor: resignInput === 'DELETE' ? C.red : C.redLight, color: 'white', padding: 12, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: resignInput === 'DELETE' ? 'pointer' : 'default', opacity: resignInput === 'DELETE' ? 1 : 0.5 }}>
+                                    {t.resignFinal}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </>, '0px', { border: `1px solid ${C.redBorder}` })}
+            </div>
+        </div>
+    );
+
+    // ─── MAIN DASHBOARD ───
     return (
-        <div style={{ minHeight: "100vh", background: C.bgSubtle, display: "flex", flexDirection: "column", fontFamily: "Inter, -apple-system, sans-serif" }}>
+        <div style={{ backgroundColor: C.bg, minHeight: '100vh', fontFamily: 'Inter, sans-serif', paddingBottom: 80 }}>
+
+            {/* Loan Modal */}
+            {showLoanModal && (
+                <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowLoanModal(false)}>
+                    <div className="modal-content" style={{ backgroundColor: C.cardBg }}>
+                        <div style={{ background: 'linear-gradient(170deg, #08101F 0%, #0D1829 100%)', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '20px 20px 0 0' }}>
+                            <p style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>Loan Eligibility — KavachScore</p>
+                            <button onClick={() => setShowLoanModal(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', width: 28, height: 28, borderRadius: '50%', cursor: 'pointer', fontSize: 14 }}>✕</button>
+                        </div>
+                        <div style={{ padding: 20, overflowY: 'auto', maxHeight: '60vh' }}>
+                            <div style={{ backgroundColor: C.accentLight, borderRadius: 12, padding: 16, marginBottom: 16, textAlign: 'center', border: `1px solid ${C.accentBorder}` }}>
+                                <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 4 }}>YOUR KAVACHSCORE</p>
+                                <p style={{ color: C.accent, fontWeight: 800, fontSize: 40 }}>{score}</p>
+                                <p style={{ color: C.green, fontSize: 13, fontWeight: 600, marginTop: 4 }}>Trusted Worker — Premium loan eligible</p>
+                            </div>
+                            {[
+                                { name: 'KreditBee', amount: '₹10,000 – ₹2,00,000', rate: '1.02% per month', color: C.accent, bg: C.accentLight, border: C.accentBorder },
+                                { name: 'MoneyTap', amount: '₹3,000 – ₹5,00,000', rate: '1.08% per month', color: C.green, bg: C.greenLight, border: C.greenBorder },
+                                { name: 'CashE', amount: '₹5,000 – ₹4,00,000', rate: '2.50% per month', color: C.orange, bg: C.orangeLight, border: C.orangeBorder },
+                            ].map((partner, i) => (
+                                <div key={i} style={{ backgroundColor: partner.bg, borderRadius: 12, padding: '14px 16px', marginBottom: 10, border: `1px solid ${partner.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+                                    <div>
+                                        <p style={{ color: partner.color, fontWeight: 700, fontSize: 14 }}>{partner.name}</p>
+                                        <p style={{ color: C.textMuted, fontSize: 12, marginTop: 2 }}>{partner.amount}</p>
+                                        <p style={{ color: C.textMuted, fontSize: 11, marginTop: 2 }}>{partner.rate}</p>
+                                    </div>
+                                    <div style={{ backgroundColor: partner.color, color: 'white', padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>Apply →</div>
+                                </div>
+                            ))}
+                            <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: 12, marginTop: 8, border: `1px solid ${C.cardBorder}` }}>
+                                <p style={{ color: C.textMuted, fontSize: 11, lineHeight: 1.6 }}>KavachPay is not a lender. We share your KavachScore with partners who make independent lending decisions.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Navbar */}
-            <nav style={{ background: C.bg, borderBottom: `1px solid ${C.border}`, padding: "0 20px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56, position: "sticky", top: 0, zIndex: 50 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                    <svg width="24" height="24" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="#1A3A5C" /><text x="50" y="68" textAnchor="middle" fontSize="50" fill="white" fontWeight="bold" fontFamily="Georgia,serif">₹</text></svg>
-                    <span style={{ fontWeight: 900, fontSize: 13, color: C.logoBlue, letterSpacing: 1 }}>KAVACHPAY</span>
+            <div style={{ background: 'linear-gradient(170deg, #08101F 0%, #0D1829 100%)', padding: '14px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <KavachLogo size={28} light />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <LangToggle lang={lang} setLang={setLang} />
+                    <button onClick={() => setPage('profile')}
+                        style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800, fontSize: 14, overflow: 'hidden' }}>
+                        {photoUrl ? <img src={photoUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : name[0]}
+                    </button>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    {/* Notification bell */}
-                    <div style={{ position: "relative" }}>
-                        <button onClick={() => setShowNotifs(!showNotifs)} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" }}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" /></svg>
-                            {unread > 0 && <div style={{ position: "absolute", top: -4, right: -4, width: 16, height: 16, borderRadius: "50%", background: C.danger, border: "2px solid #fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff" }}>{unread}</div>}
-                        </button>
+            </div>
 
-                        {/* Notification dropdown */}
-                        {showNotifs && (
-                            <div style={{ position: "absolute", top: 44, right: 0, width: 320, background: C.bg, borderRadius: 12, boxShadow: "0 8px 28px rgba(0,0,0,0.12)", border: `1px solid ${C.border}`, zIndex: 200, overflow: "hidden" }}>
-                                <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Notifications</span>
-                                    {unread > 0 && <button onClick={markAllRead} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: C.accent, fontWeight: 600 }}>Mark all read</button>}
+            {/* Zone Auto-Update Banner */}
+            {showZoneUpdate && !zoneUpdated && (
+                <div className="fade-in" style={{ backgroundColor: C.accentLight, borderBottom: `1px solid ${C.accentBorder}`, padding: '12px 20px' }}>
+                    <div style={{ maxWidth: 520, margin: '0 auto' }}>
+                        <p style={{ color: C.accent, fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{t.zoneUpdateTitle}</p>
+                        <p style={{ color: C.textSec, fontSize: 12, marginBottom: 10, lineHeight: 1.5 }}>
+                            {t.zoneUpdateMsg} <strong>{suggestedZone}</strong>.
+                        </p>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <button onClick={handleZoneAccept}
+                                style={{ backgroundColor: C.accent, color: 'white', padding: '7px 16px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                                {t.zoneUpdateAccept}
+                            </button>
+                            <button onClick={() => setShowZoneUpdate(false)}
+                                style={{ backgroundColor: 'transparent', color: C.textMuted, padding: '7px 16px', borderRadius: 8, border: `1px solid ${C.accentBorder}`, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                                {t.zoneUpdateIgnore}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Zone Updated Confirmation */}
+            {zoneUpdated && (
+                <div className="fade-in" style={{ backgroundColor: C.greenLight, borderBottom: `1px solid ${C.greenBorder}`, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <p style={{ color: C.green, fontSize: 12, fontWeight: 600 }}>Your zone has been updated to <strong>{suggestedZone}</strong>. Policy coverage now applies to your new zone.</p>
+                </div>
+            )}
+
+            {/* Tab Bar */}
+            <div style={{ backgroundColor: C.cardBg, display: 'flex', borderBottom: `1px solid ${C.cardBorder}`, overflowX: 'auto' }}>
+                {[
+                    { key: 'home', label: t.home },
+                    { key: 'earnings', label: t.earnings },
+                    { key: 'score', label: t.score },
+                    { key: 'notifications', label: `${t.alerts}${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
+                    { key: 'forum', label: t.forum },
+                ].map(tb => (
+                    <button key={tb.key} onClick={() => setTab(tb.key)}
+                        style={{ padding: '14px 18px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', fontWeight: tab === tb.key ? 700 : 500, color: tab === tb.key ? C.accent : C.textMuted, borderBottom: tab === tb.key ? `2px solid ${C.accent}` : '2px solid transparent', fontSize: 13, whiteSpace: 'nowrap', fontFamily: 'Inter, sans-serif' }}>
+                        {tb.label}
+                    </button>
+                ))}
+            </div>
+
+            <div style={{ padding: '16px', maxWidth: 520, margin: '0 auto' }}>
+
+                {/* HOME TAB */}
+                {tab === 'home' && (
+                    <div className="fade-in">
+                        {/* Policy Card */}
+                        <div style={{ background: 'linear-gradient(170deg, #08101F 0%, #0D1829 100%)', borderRadius: 18, padding: 22, marginBottom: 12, color: 'white', boxShadow: '0 4px 24px rgba(91,110,245,0.25)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
+                                <div>
+                                    <p style={{ opacity: 0.7, fontSize: 11, letterSpacing: 0.8, textTransform: 'uppercase', color: 'white' }}>{t.activePolicy}</p>
+                                    <p style={{ fontWeight: 800, fontSize: 18, marginTop: 4, color: 'white' }}>{name}</p>
+                                    <p style={{ opacity: 0.65, fontSize: 12, marginTop: 3, color: 'white' }}>{platform} · {zone.split(',')[0]}</p>
+                                    <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                                        {policyType === 'employer' && <div style={{ backgroundColor: 'rgba(46,125,82,0.4)', padding: '3px 10px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.2)' }}><p style={{ fontSize: 10, fontWeight: 700, color: 'white' }}>{t.employerBadge}</p></div>}
+                                        {eshramId && <div style={{ backgroundColor: 'rgba(240,165,0,0.3)', padding: '3px 10px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.2)' }}><p style={{ fontSize: 10, fontWeight: 700, color: 'white' }}>{t.eshramBadge}</p></div>}
+                                    </div>
                                 </div>
-                                <div style={{ maxHeight: 320, overflowY: "auto" }}>
-                                    {notifs.map((n) => {
-                                        const s = typeStyle(n.type);
-                                        return (
-                                            <div key={n.id} style={{ padding: "12px 16px", borderBottom: `1px solid ${C.border}`, background: n.read ? C.bg : C.bgSubtle, cursor: "default" }}>
-                                                <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                                                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: s.dot, marginTop: 4, flexShrink: 0 }} />
-                                                    <div style={{ flex: 1 }}>
-                                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                                                            <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{n.title}</span>
-                                                            <span style={{ fontSize: 10, color: C.textLight }}>{n.time}</span>
-                                                        </div>
-                                                        <div style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.5 }}>{n.body}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                <div style={{ backgroundColor: 'rgba(46,125,82,0.9)', padding: '4px 12px', borderRadius: 20 }}>
+                                    <p style={{ fontSize: 11, fontWeight: 700, color: 'white' }}>{t.active}</p>
                                 </div>
                             </div>
-                        )}
-                    </div>
-
-                    <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{u.name}</div>
-                        <div style={{ fontSize: 11, color: C.textLight }}>{u.platform} · {u.workerId}</div>
-                    </div>
-                    <button onClick={onLogout} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 600, color: C.textMuted, cursor: "pointer" }}>Logout</button>
-                </div>
-            </nav>
-
-            <div style={{ flex: 1, maxWidth: 520, width: "100%", margin: "0 auto", padding: "20px 16px 100px" }}>
-
-                {/* Live payout banner — shown on login */}
-                {showBanner && (
-                    <div style={{ background: C.successLight, border: "1px solid #A7F3D0", borderRadius: 10, padding: "12px 16px", marginBottom: 14, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-                        <div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: C.success }}>Payout Credited — ₹1,500</div>
-                            <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>Heavy Rain (HRA) triggered in Koramangala at 09:14 AM. Amount credited to your UPI.</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
+                                {[
+                                    { label: t.weeklyCoverage, value: '₹' + coverage },
+                                    { label: t.premium, value: policyType === 'employer' ? 'FREE' : '₹' + premium },
+                                    { label: t.avgIncome, value: '₹' + avgIncome },
+                                    { label: t.avgDeliveries, value: avgDeliveries + '/day' },
+                                ].map((s, i) => (
+                                    <div key={i} style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
+                                        <p style={{ fontWeight: 800, fontSize: 14, color: 'white' }}>{s.value}</p>
+                                        <p style={{ opacity: 0.65, fontSize: 9, marginTop: 3, color: 'white', lineHeight: 1.3 }}>{s.label}</p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                        <button onClick={() => setShowBanner(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: C.textLight, flexShrink: 0, lineHeight: 1 }}>×</button>
+
+                        {/* Loan Banner */}
+                        {getLoanAmount() ? (
+                            card(<>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <p style={{ color: C.accent, fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{t.loanTitle}</p>
+                                        <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 8 }}>{t.loanSub}</p>
+                                        <p style={{ color: C.textSec, fontSize: 13 }}>{t.loanQualify} <span style={{ color: C.green, fontWeight: 800, fontSize: 16 }}>{getLoanAmount()}</span></p>
+                                        <p style={{ color: C.textMuted, fontSize: 11, marginTop: 4 }}>{t.loanPartner}</p>
+                                    </div>
+                                    <div style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: C.accentLight, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginLeft: 12 }}>
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+                                    </div>
+                                </div>
+                                <button onClick={() => setShowLoanModal(true)}
+                                    style={{ width: '100%', background: 'linear-gradient(135deg, #1A3A5C, #08101F)', color: 'white', padding: '10px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: 12 }}>
+                                    {t.loanBtn}
+                                </button>
+                            </>, '12px', { borderLeft: `4px solid ${C.accent}` })
+                        ) : (
+                            card(<p style={{ color: C.orange, fontSize: 13 }}>{t.loanLow}</p>, '12px', { backgroundColor: C.orangeLight, borderLeft: `4px solid ${C.orange}` })
+                        )}
+
+                        {/* Referral */}
+                        {card(<>
+                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{t.referralTitle}</p>
+                            <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 14 }}>{t.referralSub}</p>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+                                <div style={{ flex: 1, backgroundColor: C.bg, borderRadius: 10, padding: '12px 16px', border: `1.5px dashed ${C.accentBorder}`, textAlign: 'center' }}>
+                                    <p style={{ color: C.accent, fontWeight: 800, fontSize: 18, letterSpacing: 2 }}>{referralCode}</p>
+                                </div>
+                                <button onClick={handleCopyReferral}
+                                    style={{ backgroundColor: referralCopied ? C.green : C.accent, color: 'white', padding: '12px 16px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                    {referralCopied ? t.referralCopied : t.referralCopy}
+                                </button>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                <div style={{ backgroundColor: C.accentLight, borderRadius: 8, padding: '10px', textAlign: 'center', border: `1px solid ${C.accentBorder}` }}>
+                                    <p style={{ color: C.accent, fontWeight: 800, fontSize: 18 }}>1</p>
+                                    <p style={{ color: C.textMuted, fontSize: 11, marginTop: 2 }}>{t.referralUsed}</p>
+                                </div>
+                                <div style={{ backgroundColor: C.greenLight, borderRadius: 8, padding: '10px', textAlign: 'center', border: `1px solid ${C.greenBorder}` }}>
+                                    <p style={{ color: C.green, fontWeight: 800, fontSize: 18 }}>₹10</p>
+                                    <p style={{ color: C.textMuted, fontSize: 11, marginTop: 2 }}>{t.referralSaved}</p>
+                                </div>
+                            </div>
+                        </>)}
+
+                        {/* Earnings Meter */}
+                        {card(<>
+                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{t.earningsTitle}</p>
+                            <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 14 }}>{t.earningsSub}</p>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                <p style={{ color: C.textMuted, fontSize: 13 }}>{t.earnedSoFar}</p>
+                                <p style={{ color: C.accent, fontWeight: 700, fontSize: 13 }}>₹{earnedSoFar} / ₹{avgIncome}</p>
+                            </div>
+                            <div style={{ backgroundColor: C.accentLight, borderRadius: 8, height: 10, overflow: 'hidden', marginBottom: 10 }}>
+                                <div style={{ width: `${earningsPercent}%`, height: '100%', backgroundColor: earningsPercent >= 80 ? C.green : earningsPercent >= 50 ? C.orange : C.red, borderRadius: 8, transition: 'width 0.8s ease' }} />
+                            </div>
+                            <div style={{ backgroundColor: C.accentLight, borderRadius: 10, padding: '10px 12px', border: `1px solid ${C.accentBorder}` }}>
+                                <p style={{ color: C.accent, fontSize: 13, fontWeight: 600 }}>{t.kavachCovers} ₹{remainingCoverage} {t.kavachCoversSub}</p>
+                            </div>
+                        </>)}
+
+                        {/* Disruption History */}
+                        {card(<>
+                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.disruptionHistory}</p>
+                            {disruptionHistory.map((d, i) => (
+                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: 10, marginBottom: 6, backgroundColor: d.paid ? C.greenLight : C.bg, border: `1px solid ${d.paid ? C.greenBorder : C.cardBorder}` }}>
+                                    <div>
+                                        <p style={{ color: C.text, fontWeight: 600, fontSize: 13 }}>{d.event}</p>
+                                        <p style={{ color: C.textMuted, fontSize: 11, marginTop: 2 }}>{d.date} · {d.severity}</p>
+                                        {d.txn && <p style={{ color: C.textMuted, fontSize: 10, marginTop: 1, opacity: 0.7 }}>{d.txn}</p>}
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <p style={{ color: d.paid ? C.green : C.red, fontWeight: 800, fontSize: 14 }}>{d.paid ? '+₹' + d.payout : '—'}</p>
+                                        <p style={{ color: C.textMuted, fontSize: 11 }}>{d.paid ? t.paid : t.notPaid}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </>)}
+
+                        {/* Quick Actions */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                            {[
+                                { label: t.myPolicy, action: () => setPage('policy') },
+                                { label: t.myClaims, action: () => setPage('claims') },
+                            ].map((btn, i) => (
+                                <button key={i} onClick={btn.action}
+                                    style={{ backgroundColor: C.cardBg, color: C.accent, padding: 16, borderRadius: 12, border: `1.5px solid ${C.accentBorder}`, fontWeight: 700, cursor: 'pointer', fontSize: 14, fontFamily: 'Inter, sans-serif' }}>
+                                    {btn.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 )}
 
-                {/* HOME */}
-                {tab === "home" && (<>
-                    <div style={{ marginBottom: 18 }}>
-                        <h2 style={{ fontSize: 18, fontWeight: 800, color: C.text, letterSpacing: -0.3 }}>Welcome back, {u.name.split(" ")[0]}</h2>
-                        <p style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>{u.zone}, {u.city} — {u.platform} · Coverage active</p>
-                    </div>
-
-                    {/* Policy card */}
-                    <div style={{ background: `linear-gradient(135deg, ${C.logoBlue} 0%, #0F172A 100%)`, borderRadius: 16, padding: "20px", marginBottom: 14, color: "#fff" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-                            <div>
-                                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 3 }}>Active Policy</div>
-                                <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: -0.3 }}>Individual Cover</div>
-                                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 1 }}>{u.platform} · {u.zone}</div>
-                            </div>
-                            <div style={{ background: "rgba(5,150,105,0.2)", border: "1px solid rgba(5,150,105,0.35)", borderRadius: 20, padding: "3px 10px", fontSize: 10, fontWeight: 700, color: "#6EE7B7", letterSpacing: 0.5 }}>ACTIVE</div>
-                        </div>
-                        <div style={{ display: "flex", gap: 20, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-                            {[["Premium", "₹149/mo"], ["Max Payout", "₹4,500"], ["Valid Till", "Dec 2025"]].map(([l, v]) => (
-                                <div key={l}>
-                                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5 }}>{l}</div>
-                                    <div style={{ fontSize: 14, fontWeight: 800, marginTop: 2 }}>{v}</div>
+                {/* EARNINGS TAB */}
+                {tab === 'earnings' && (
+                    <div className="fade-in">
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
+                            {[
+                                { label: 'Avg Weekly', value: '₹' + avgIncome, color: C.accent, bg: C.accentLight, border: C.accentBorder },
+                                { label: 'Total Payouts', value: '₹' + disruptionHistory.filter(d => d.paid).reduce((a, b) => a + b.payout, 0), color: C.green, bg: C.greenLight, border: C.greenBorder },
+                                { label: 'This Week', value: '₹' + earnedSoFar, color: C.orange, bg: C.orangeLight, border: C.orangeBorder },
+                            ].map((s, i) => (
+                                <div key={i} style={{ backgroundColor: s.bg, borderRadius: 12, padding: 14, textAlign: 'center', border: `1px solid ${s.border}` }}>
+                                    <p style={{ color: s.color, fontWeight: 800, fontSize: 16 }}>{s.value}</p>
+                                    <p style={{ color: C.textMuted, fontSize: 11, marginTop: 4 }}>{s.label}</p>
                                 </div>
                             ))}
                         </div>
+                        {card(<>
+                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{t.weeklyChart}</p>
+                            <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 16 }}>Last 6 weeks</p>
+                            <ResponsiveContainer width="100%" height={200}>
+                                <BarChart data={earningsData} barGap={4}>
+                                    <XAxis dataKey="week" tick={{ fontSize: 11, fill: C.textMuted }} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fontSize: 10, fill: C.textMuted }} axisLine={false} tickLine={false} />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Bar dataKey="earned" fill={C.accent} radius={[4, 4, 0, 0]} name="Earnings" />
+                                    <Bar dataKey="coverage" fill={C.accentBorder} radius={[4, 4, 0, 0]} name="Coverage" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </>)}
                     </div>
+                )}
 
-                    {/* Quick actions */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-                        {[{ icon: "▤", label: "My Policy", sub: "View details & coverage", page: "policy" }, { icon: "≡", label: "My Claims", sub: "View payout history", page: "claims" }].map((item) => (
-                            <button key={item.label} onClick={() => onNavigate(item.page)} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "15px", textAlign: "left", cursor: "pointer", transition: "box-shadow 0.15s, transform 0.15s" }}
-                                onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.07)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "translateY(0)"; }}
-                            >
-                                <div style={{ fontSize: 20, marginBottom: 8, color: C.logoBlue, fontWeight: 700 }}>{item.icon}</div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{item.label}</div>
-                                <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{item.sub}</div>
-                            </button>
-                        ))}
-                    </div>
+                {/* SCORE TAB */}
+                {tab === 'score' && (
+                    <div className="fade-in">
+                        {card(<>
+                            <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                                <div style={{ width: 120, height: 120, borderRadius: '50%', border: `8px solid ${getScoreColor()}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', boxShadow: `0 0 28px ${getScoreColor()}30` }}>
+                                    <p style={{ fontSize: 32, fontWeight: 800, color: getScoreColor(), lineHeight: 1 }}>{animatedScore}</p>
+                                    <p style={{ fontSize: 10, color: C.textMuted, marginTop: 2 }}>/ 900</p>
+                                </div>
+                                <p style={{ color: getScoreColor(), fontWeight: 700, fontSize: 16 }}>{getScoreTier()}</p>
+                                <p style={{ color: C.textMuted, fontSize: 13, marginTop: 5 }}>
+                                    {score >= 750 ? 'Instant payouts · Lowest premium' : score >= 500 ? '2hr delay · +15% premium' : '24hr delay · Manual review'}
+                                </p>
+                            </div>
+                        </>)}
 
-                    {/* Status strip */}
-                    <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <div style={{ width: 7, height: 7, borderRadius: "50%", background: C.success, boxShadow: `0 0 0 3px ${C.successLight}` }} />
-                            <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Coverage Active</span>
-                        </div>
-                        <span style={{ fontSize: 11, color: C.textMuted }}>Zone monitoring — live</span>
-                    </div>
-                </>)}
-
-                {/* EARNINGS */}
-                {tab === "earnings" && (<>
-                    <div style={{ marginBottom: 18 }}>
-                        <h2 style={{ fontSize: 18, fontWeight: 800, color: C.text }}>This Week's Earnings</h2>
-                        <p style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>Protected income across all delivery days</p>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-                        <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px" }}>
-                            <div style={{ fontSize: 10, color: C.textMuted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 5 }}>Actual Earned</div>
-                            <div style={{ fontSize: 22, fontWeight: 800, color: C.text }}>₹{EARNINGS_DATA.reduce((s, d) => s + d.earned, 0).toLocaleString()}</div>
-                        </div>
-                        <div style={{ background: C.accentLight, border: "1px solid #BFDBFE", borderRadius: 12, padding: "14px" }}>
-                            <div style={{ fontSize: 10, color: C.accent, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 5 }}>Protected</div>
-                            <div style={{ fontSize: 22, fontWeight: 800, color: C.accent }}>₹{EARNINGS_DATA.reduce((s, d) => s + d.protected, 0).toLocaleString()}</div>
-                        </div>
-                    </div>
-                    <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "18px" }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 14 }}>Daily Breakdown</div>
-                        <div style={{ display: "flex", gap: 8, alignItems: "flex-end", height: 110 }}>
-                            {EARNINGS_DATA.map((d) => (
-                                <div key={d.day} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                                    <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600 }}>{d.earned > 0 ? `₹${d.earned}` : "—"}</div>
-                                    <div style={{ width: "72%", height: Math.round((d.protected / maxE) * 88), background: d.earned === 0 ? C.accentLight : C.accent, borderRadius: 4, border: d.earned === 0 ? "1px dashed #93C5FD" : "none", minHeight: 4 }} />
-                                    <div style={{ fontSize: 10, color: C.textMuted }}>{d.day}</div>
+                        {card(<>
+                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.scoreGoesUp}</p>
+                            {[
+                                { action: 'Legitimate claim — all 5 layers passed', points: '+10 pts' },
+                                { action: 'Weekly active streak', points: '+5 pts' },
+                                { action: '6-month tenure bonus', points: '+15 pts' },
+                                { action: 'Zero fraud flags for 30 days', points: '+8 pts' },
+                            ].map((item, i) => (
+                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: C.greenLight, border: `1px solid ${C.greenBorder}`, borderRadius: 10, marginBottom: 8 }}>
+                                    <p style={{ color: C.green, fontWeight: 600, fontSize: 13 }}>{item.action}</p>
+                                    <p style={{ color: C.green, fontWeight: 800, fontSize: 14, marginLeft: 12 }}>{item.points}</p>
                                 </div>
                             ))}
-                        </div>
-                        <div style={{ display: "flex", gap: 14, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 2, background: C.accent }} /><span style={{ fontSize: 11, color: C.textMuted }}>Earned</span></div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 2, background: C.accentLight, border: "1px dashed #93C5FD" }} /><span style={{ fontSize: 11, color: C.textMuted }}>Protected (disruption)</span></div>
-                        </div>
-                    </div>
-                </>)}
+                        </>)}
 
-                {/* KAVACH SCORE */}
-                {tab === "score" && (<>
-                    <div style={{ marginBottom: 18 }}>
-                        <h2 style={{ fontSize: 18, fontWeight: 800, color: C.text }}>Your KavachScore</h2>
-                        <p style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>Scored out of 900 — like a CIBIL score for gig workers</p>
-                    </div>
-                    <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 16, padding: "28px 20px", textAlign: "center", marginBottom: 14 }}>
-                        <div style={{ position: "relative", display: "inline-block", marginBottom: 14 }}>
-                            <svg width="130" height="130" viewBox="0 0 130 130">
-                                <circle cx="65" cy="65" r="54" fill="none" stroke={C.bgMuted} strokeWidth="11" />
-                                <circle cx="65" cy="65" r="54" fill="none" stroke={col} strokeWidth="11"
-                                    strokeDasharray={`${2 * Math.PI * 54}`}
-                                    strokeDashoffset={`${2 * Math.PI * 54 * (1 - KAVACH_SCORE / SCORE_MAX)}`}
-                                    strokeLinecap="round" transform="rotate(-90 65 65)"
-                                />
-                            </svg>
-                            <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", textAlign: "center" }}>
-                                <div style={{ fontSize: 28, fontWeight: 900, color: col }}>{KAVACH_SCORE}</div>
-                                <div style={{ fontSize: 10, color: C.textMuted }}>/ {SCORE_MAX}</div>
-                            </div>
-                        </div>
-                        <div style={{ fontSize: 16, fontWeight: 800, color: col }}>{scoreLabel(KAVACH_SCORE)}</div>
-                        <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4, maxWidth: 260, margin: "6px auto 0" }}>Top 15% of workers — eligible for priority payouts</div>
-                        <div style={{ marginTop: 16, background: C.bgMuted, borderRadius: 8, height: 7, overflow: "hidden", maxWidth: 260, margin: "16px auto 0" }}>
-                            <div style={{ height: "100%", width: `${(KAVACH_SCORE / SCORE_MAX) * 100}%`, background: col, borderRadius: 8 }} />
-                        </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", maxWidth: 260, margin: "4px auto 0", fontSize: 10, color: C.textLight }}>
-                            <span>0</span><span>300</span><span>600</span><span>900</span>
-                        </div>
-                    </div>
-                    <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-                        <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.border}`, fontSize: 13, fontWeight: 700, color: C.text }}>Score Breakdown</div>
-                        {SCORE_ITEMS.map((item, i) => (
-                            <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 16px", borderBottom: i < SCORE_ITEMS.length - 1 ? `1px solid ${C.border}` : "none" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: item.done ? C.successLight : C.bgMuted, border: `1.5px solid ${item.done ? "#A7F3D0" : C.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: item.done ? C.success : C.textLight }}>{item.done ? "✓" : "○"}</div>
-                                    <span style={{ fontSize: 13, color: item.done ? C.text : C.textMuted }}>{item.label}</span>
+                        {card(<>
+                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.scoreGoesDown}</p>
+                            {[
+                                { action: 'Suspicious claim pattern', points: '-25 pts' },
+                                { action: 'Active during disruption window', points: '-20 pts' },
+                                { action: 'Missed self declaration', points: '-5 pts' },
+                                { action: 'Policy lapse over 2 weeks', points: '-10 pts' },
+                            ].map((item, i) => (
+                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: C.redLight, border: `1px solid ${C.redBorder}`, borderRadius: 10, marginBottom: 8 }}>
+                                    <p style={{ color: C.red, fontWeight: 600, fontSize: 13 }}>{item.action}</p>
+                                    <p style={{ color: C.red, fontWeight: 800, fontSize: 14, marginLeft: 12 }}>{item.points}</p>
                                 </div>
-                                <span style={{ fontSize: 11, fontWeight: 600, color: item.done ? C.success : C.warning }}>{item.done ? "+100" : "Pending"}</span>
+                            ))}
+                        </>)}
+
+                        {card(<>
+                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{t.scoreTimeline}</p>
+                            <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 16 }}>Last 2 months</p>
+                            <ResponsiveContainer width="100%" height={180}>
+                                <LineChart data={scoreHistory}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke={C.cardBorder} />
+                                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: C.textMuted }} axisLine={false} tickLine={false} />
+                                    <YAxis domain={[700, 820]} tick={{ fontSize: 11, fill: C.textMuted }} axisLine={false} tickLine={false} />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Line type="monotone" dataKey="score" stroke={C.accent} strokeWidth={3} dot={{ fill: C.accent, r: 5, strokeWidth: 0 }} name="KavachScore" />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </>)}
+                    </div>
+                )}
+
+                {/* NOTIFICATIONS TAB */}
+                {tab === 'notifications' && (
+                    <div className="fade-in">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                            <p style={{ color: C.text, fontWeight: 700, fontSize: 15 }}>{t.allNotifs}</p>
+                            {unreadCount > 0 && (
+                                <div style={{ backgroundColor: C.red, borderRadius: 12, padding: '3px 10px' }}>
+                                    <p style={{ color: 'white', fontSize: 11, fontWeight: 700 }}>{unreadCount} {t.unread}</p>
+                                </div>
+                            )}
+                        </div>
+                        {notifications.map((n, i) => (
+                            <div key={i} onClick={() => setExpandedNotif(expandedNotif === i ? null : i)}
+                                style={{ backgroundColor: C.cardBg, borderRadius: 14, padding: 16, marginBottom: 10, border: `1px solid ${n.read ? C.cardBorder : n.border}`, cursor: 'pointer', borderLeft: `4px solid ${n.color}` }}>
+                                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                                    <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: n.read ? 'transparent' : C.red, flexShrink: 0, marginTop: 4 }} />
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                            <p style={{ color: C.text, fontWeight: 700, fontSize: 13 }}>{n.title}</p>
+                                        </div>
+                                        <p style={{ color: C.textMuted, fontSize: 12, lineHeight: 1.5 }}>{n.msg}</p>
+                                        <p style={{ color: C.textMuted, fontSize: 11, marginTop: 6, opacity: 0.7 }}>{n.time}</p>
+                                        {expandedNotif === i && (
+                                            <div className="fade-in" style={{ backgroundColor: C.bg, borderRadius: 8, padding: 12, marginTop: 10, border: `1px solid ${C.cardBorder}` }}>
+                                                {n.detail.split('\n').map((line, j) => (
+                                                    <p key={j} style={{ color: C.textMuted, fontSize: 12, lineHeight: 1.7 }}>{line}</p>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         ))}
                     </div>
-                </>)}
+                )}
+
+                {/* FORUM TAB */}
+                {tab === 'forum' && (
+                    <Forum worker={{ ...worker, zone, name, city, zone: zone, city: city }} lang={lang} />
+                )}
             </div>
 
-            {/* Bottom nav */}
-            <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.bg, borderTop: `1px solid ${C.border}`, display: "flex", zIndex: 50 }}>
-                {TABS.map((t) => (
-                    <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: "10px 4px 12px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                        <span style={{ fontSize: 18, color: tab === t.id ? C.accent : C.textLight, fontWeight: 700 }}>{t.icon}</span>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: tab === t.id ? C.accent : C.textLight }}>{t.label}</span>
-                        {tab === t.id && <div style={{ width: 18, height: 2, background: C.accent, borderRadius: 1 }} />}
+            {/* Bottom Nav */}
+            <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: C.cardBg, borderTop: `1px solid ${C.cardBorder}`, padding: '10px 20px', display: 'flex', justifyContent: 'space-around', zIndex: 100 }}>
+                {[
+                    { label: t.home, key: 'home', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg> },
+                    { label: t.earnings, key: 'earnings', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg> },
+                    { label: t.score, key: 'score', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7" /><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" /></svg> },
+                    { label: t.alerts, key: 'notifications', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg> },
+                    { label: t.forum, key: 'forum', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg> },
+                ].map(tb => (
+                    <button key={tb.key} onClick={() => setTab(tb.key)}
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 10px', color: tab === tb.key ? C.accent : C.textMuted, fontFamily: 'Inter, sans-serif' }}>
+                        {tb.icon}
+                        <p style={{ fontSize: 10, fontWeight: tab === tb.key ? 700 : 500 }}>{tb.label}</p>
                     </button>
                 ))}
-                <button onClick={() => onNavigate("chatbot")} style={{ flex: 1, padding: "10px 4px 12px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.textLight} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: C.textLight }}>Chat</span>
-                </button>
             </div>
+
+            {/* Chatbot */}
+            <button onClick={() => setShowChat(prev => !prev)}
+                style={{ position: 'fixed', bottom: 80, right: 20, backgroundColor: C.accent, color: 'white', width: 48, height: 48, borderRadius: '50%', border: 'none', cursor: 'pointer', boxShadow: '0 4px 16px rgba(91,110,245,0.35)', zIndex: 99, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+            </button>
+            {showChat && <Chatbot onClose={() => setShowChat(false)} lang={lang} />}
         </div>
     );
 }

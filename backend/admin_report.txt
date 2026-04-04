@@ -1,0 +1,23 @@
+--- ADMINS REPORT ---
+UID: Ieva6ufbE4Ss1FV2fFwWhl7JUCE3
+Email: admin@kavachpay.in
+Role: Super Admin
+---------------------
+UID: mZSYShPbqzg4b69p0e70uAUWYWq2
+Email: ops@kavachpay.in
+Role: Ops Manager
+---------------------
+
+--- WORKERS (Sample) ---
+UID: BbG9iDgkFxOOAr0REaBmWnpPadp2
+Email: priya@kavachpay.in
+---------------------
+UID: FOl3eDk0eIMNv9DLs4JHvKCm0Vi2
+Email: deepa@kavachpay.in
+---------------------
+UID: tg67icfBjvY5SxaU92ybl9Q4t3g1
+Email: arif@kavachpay.in
+---------------------
+UID: tlqXvcpnNwfc1YAbmok390Q2y2N2
+Email: ravi@kavachpay.in
+---------------------

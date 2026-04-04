@@ -1,55 +1,34 @@
 from flask import Blueprint, request, jsonify
 from firebase_admin import firestore
-import uuid
+from utils.auth_middleware import require_auth
 
 payments_bp = Blueprint('payments', __name__)
 
+@payments_bp.route('/<uid>', methods=['GET'])
+@require_auth
+def get_user_payments(uid):
+    # Workers can only read their own payments
+    if request.user.get('uid') != uid:
+        return jsonify({'error': 'Forbidden'}), 403
 
-@payments_bp.route('/premium', methods=['POST'])
-def process_premium():
     db = firestore.client()
-    data = request.get_json()
+    pay_type = request.args.get('type')  # premium or payout
 
-    worker_id = data.get('workerId')
-    amount = data.get('amount', 59)
-    txn_id = f"pay_{uuid.uuid4().hex[:12]}"
+    query = db.collection('payments').where('uid', '==', uid)
 
-    payment = {
-        'workerId':  worker_id,
-        'amount':    amount,
-        'type':      'premium',
-        'method':    data.get('method', 'upi'),
-        'txnId':     txn_id,
-        'status':    'success',
-        'createdAt': firestore.SERVER_TIMESTAMP
-    }
+    if pay_type:
+        query = query.where('type', '==', pay_type)
 
-    db.collection('payments').add(payment)
+    query = query.order_by('created_at', direction=firestore.Query.DESCENDING)
 
-    return jsonify({
-        'success': True,
-        'txnId':   txn_id,
-        'amount':  amount,
-        'message': 'Premium payment successful'
-    }), 200
+    results = query.stream()
+    payments = []
+    for doc in results:
+        p = doc.to_dict()
+        p['id'] = doc.id
+        # Convert Firestore timestamp to ISO string for JSON serialization
+        if 'created_at' in p and hasattr(p['created_at'], 'isoformat'):
+            p['created_at'] = p['created_at'].isoformat()
+        payments.append(p)
 
-
-@payments_bp.route('/payout', methods=['POST'])
-def trigger_payout():
-    data = request.get_json()
-    txn_id = f"pay_{uuid.uuid4().hex[:12]}"
-
-    return jsonify({
-        'success': True,
-        'txnId':   txn_id,
-        'amount':  data.get('amount', 0),
-        'message': 'Payout triggered successfully'
-    }), 200
-
-
-@payments_bp.route('/<worker_id>', methods=['GET'])
-def get_payment_history(worker_id):
-    db = firestore.client()
-    payments_ref = db.collection('payments').where('workerId', '==', worker_id).stream()
-    payments = [{'id': p.id, **p.to_dict()} for p in payments_ref]
-    return jsonify({'payments': payments}), 200
+    return jsonify({'payments': payments})

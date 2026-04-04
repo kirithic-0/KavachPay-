@@ -1,43 +1,67 @@
-"""
-services/kavachscore.py — Updated for v6 schema
-Uses customer_id as the Firestore document ID.
-"""
-
+# services/kavachscore.py
 from firebase_admin import firestore
+from datetime import datetime
 
+db = firestore.client()
 
-def update_kavach_score(customer_id, event_type):
-    db          = firestore.client()
-    worker_ref  = db.collection('workers').document(customer_id)
-    worker      = worker_ref.get().to_dict()
+SCORE_DELTAS = {
+    'legitimate_claim':    +10,
+    'enrollment_streak':   +5,
+    'tenure_bonus':        +15,
+    'zero_fraud_30d':      +8,
+    'suspicious_claim':    -25,
+    'active_in_disruption': -20,
+    'missed_declaration':  -5,
+    'policy_lapse':        -10,
+}
 
+def update_kavach_score_static(uid: str, event_type: str):
+    """
+    Apply a score delta to a worker. Clamps score to [300, 1000].
+    Called from trigger_claims_for_zone and anywhere else scores change.
+    """
+    delta = SCORE_DELTAS.get(event_type, 0)
+    if delta == 0:
+        return
+
+    worker_ref = db.collection('workers').document(uid)
+    worker = worker_ref.get().to_dict()
     if not worker:
-        return None
+        return
 
-    score = worker.get('kavachScore', 750)
+    current_score = worker.get('kavach_score', 750)
+    new_score = max(300, min(1000, current_score + delta))
 
-    score_changes = {
-        'legitimate_claim':    +10,
-        'weekly_active':       +5,
-        'tenure_6months':      +15,
-        'zero_fraud_30days':   +8,
-        'profile_complete':    +12,
-        'suspicious_pattern':  -25,
-        'active_during_claim': -20,
-        'missed_declaration':  -5,
-        'policy_lapse':        -10,
-    }
+    worker_ref.update({
+        'kavach_score': new_score,
+        'updated_at': firestore.SERVER_TIMESTAMP,
+    })
 
-    score += score_changes.get(event_type, 0)
-    score  = max(300, min(900, score))
-    worker_ref.update({'kavachScore': score})
-    return score
+    # Create a score notification only for meaningful changes
+    if abs(delta) >= 5:
+        from services.notification_service import create_notification
+        direction = 'increased' if delta > 0 else 'decreased'
+        create_notification(
+            uid=uid,
+            notif_type='score',
+            title=f'KavachScore {direction.capitalize()} — {new_score}',
+            msg=f'Your score {direction} by {abs(delta)} points due to: {event_type.replace("_", " ")}.',
+            detail=f'Previous: {current_score} → New: {new_score}',
+        )
 
+def check_and_apply_tenure_bonus(uid: str, created_at):
+    """
+    Call this monthly. Checks if worker has crossed 6-month mark.
+    """
+    if not created_at:
+        return
+    months = (datetime.utcnow() - created_at.replace(tzinfo=None)).days // 30
+    if months >= 6 and months % 6 == 0:
+        update_kavach_score_static(uid, 'tenure_bonus')
 
-def get_score_tier(score):
-    if score >= 750:
-        return {'tier': 'green',  'label': 'Excellent',      'payout_speed': 'Instant',                    'premium_modifier': 1.0}
-    elif score >= 500:
-        return {'tier': 'yellow', 'label': 'Good',           'payout_speed': '2-hour delay',               'premium_modifier': 1.1}
-    else:
-        return {'tier': 'red',    'label': 'Review Needed',  'payout_speed': '24-hour delay + manual review', 'premium_modifier': 1.25}
+def check_enrollment_streak(uid: str, weeks_enrolled: int):
+    """
+    Call when processing premium renewals. Rewards 6-week streaks.
+    """
+    if weeks_enrolled > 0 and weeks_enrolled % 6 == 0:
+        update_kavach_score_static(uid, 'enrollment_streak')

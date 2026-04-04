@@ -1,143 +1,152 @@
 from flask import Blueprint, request, jsonify
 from firebase_admin import firestore
-from datetime import datetime, timedelta
-from services.weather import check_weather, check_aqi, get_severity, get_payout_percentage
+from utils.auth_middleware import require_auth
+from services.score_engine import update_kavach_score_static, analyze_fraud_risk_ml
+from datetime import datetime
+import uuid
 
 claims_bp = Blueprint('claims', __name__)
 
+@claims_bp.route('/<worker_id>', methods=['GET'])
+@require_auth
+def get_claims(worker_id):
+    db = firestore.client()
+    claims_ref = db.collection("workers").document(worker_id).collection("claims").order_by("timestamp", direction=firestore.Query.DESCENDING).get()
+    
+    claims = []
+    for doc in claims_ref:
+        doc_dict = doc.to_dict()
+        doc_dict["id"] = doc.id
 
-# Existing Route: Create a weekly policy
-@claims_bp.route('/api/policy/create', methods=['POST'])
-def create_policy():
+        # ── 5-layer verification aliases ──
+        doc_dict["verificationLayers"] = doc_dict.get("verification_layers", 0)
+        doc_dict["skipReason"]         = doc_dict.get("skip_reason", "")
+
+        # ── M2 fraud detection aliases ──
+        doc_dict["fraudDecision"] = doc_dict.get("fraud_decision", "auto_approve")
+        doc_dict["fraudProb"]     = doc_dict.get("fraud_prob", 0.0)
+        doc_dict["fraudFlags"]    = doc_dict.get("fraud_flags", [])
+
+        # ── M3 income loss aliases ──
+        doc_dict["incomeLossP10"] = doc_dict.get("income_loss_p10", 0)
+        doc_dict["incomeLossP50"] = doc_dict.get("income_loss_p50", 0)
+        doc_dict["incomeLossP90"] = doc_dict.get("income_loss_p90", 0)
+
+        # ── M7 text classification aliases ──
+        doc_dict["textPredictedCode"]  = doc_dict.get("text_predicted_code", "")
+        doc_dict["textConfidence"]     = doc_dict.get("text_confidence", 0.0)
+        doc_dict["textManualReview"]   = doc_dict.get("text_manual_review", False)
+
+        # Convert Firestore timestamps to ISO strings for JSON serialization
+        for ts_field in ['timestamp', 'date']:
+            val = doc_dict.get(ts_field)
+            if val and hasattr(val, 'isoformat'):
+                doc_dict[ts_field] = val.isoformat()
+        # Ensure date is always a human-readable string
+        if 'date' not in doc_dict or not isinstance(doc_dict.get('date'), str):
+            doc_dict['date'] = datetime.utcnow().strftime('%b %d, %Y')
+        # Sanitize timeline timestamps
+        for tl in doc_dict.get('timeline', []):
+            if 'time' in tl and hasattr(tl['time'], 'isoformat'):
+                tl['time'] = tl['time'].isoformat()
+        claims.append(doc_dict)
+        
+    return jsonify({"success": True, "claims": claims}), 200
+
+@claims_bp.route('/create', methods=['POST'])
+@require_auth
+def create_claim():
     db = firestore.client()
     data = request.get_json()
-
-    if 'worker_id' not in data:
-        return jsonify({'error': 'Missing worker_id'}), 400
-
-    worker_doc = db.collection('workers').document(data['worker_id']).get()
-    if not worker_doc.exists:
-        return jsonify({'error': 'Worker not found'}), 404
-
-    worker = worker_doc.to_dict()
-
-    start_date = datetime.utcnow()
-    end_date = start_date + timedelta(days=7)
-
-    policy = {
-        'worker_id': data['worker_id'],
-        'worker_name': worker['name'],
-        'zone': worker['zone'],
-        'premium': worker['premium'],
-        'coverage': worker['coverage'],
-        'status': 'active',
-        'start_date': start_date.isoformat(),
-        'end_date': end_date.isoformat(),
-        'created_at': firestore.SERVER_TIMESTAMP
-    }
-
-    doc_ref = db.collection('policies').add(policy)
-    policy_id = doc_ref[1].id
-
-    return jsonify({
-        'message': 'Policy created successfully!',
-        'policy_id': policy_id,
-        'start_date': start_date.isoformat(),
-        'end_date': end_date.isoformat(),
-        'coverage': worker['coverage']
-    }), 201
-
-
-# New Route: Trigger checker - the heart of KavachPay
-@claims_bp.route('/api/trigger/check', methods=['POST'])
-def trigger_check():
-    db = firestore.client()
-    data = request.get_json()
-
-    if 'city' not in data:
-        return jsonify({'error': 'Missing city'}), 400
-
-    city = data['city']
-    zone = data.get('zone', city)  # zone defaults to city if not provided
-
-    # Step 1: Check current weather and AQI
-    weather = check_weather(city)
-    aqi_data = check_aqi(city)
-    severity = get_severity(weather['rainfall_mm'], aqi_data['aqi'])
-
-    # Step 2: If no disruption, stop here
-    if not severity:
-        return jsonify({
-            'message': 'No disruption detected. No claims created.',
-            'city': city,
-            'rainfall_mm': weather['rainfall_mm'],
-            'aqi': aqi_data['aqi']
-        }), 200
-
-    # Step 3: Find all workers in the affected zone
-    workers_ref = db.collection('workers').where('zone', '==', zone).stream()
-    workers = [{'id': w.id, **w.to_dict()} for w in workers_ref]
-
-    if not workers:
-        return jsonify({
-            'message': f'Disruption detected ({severity}) but no workers found in zone: {zone}',
-            'severity': severity
-        }), 200
-
-    # Step 4: For each worker, check if they started their day
-    claims_created = []
-    workers_skipped = []
-
-    for worker in workers:
-        worker_id = worker['id']
-
-        # Only create claim if worker started their day (was planning to work)
-        if not worker.get('started_day', False):
-            workers_skipped.append({
-                'worker_id': worker_id,
-                'name': worker['name'],
-                'reason': 'Did not start day - not eligible'
-            })
-            continue
-
-        # Step 5: Calculate payout amount
-        payout_percent = get_payout_percentage(severity)
-        payout_amount = round(worker.get('coverage', 0) * payout_percent)
-
-        # Step 6: Create the claim in Firestore
-        claim = {
-            'worker_id': worker_id,
-            'worker_name': worker['name'],
-            'zone': zone,
-            'city': city,
-            'severity': severity,
-            'rainfall_mm': weather['rainfall_mm'],
-            'aqi': aqi_data['aqi'],
-            'payout_amount': payout_amount,
-            'coverage': worker.get('coverage', 0),
-            'status': 'pending',
-            'timestamp': firestore.SERVER_TIMESTAMP
-        }
-
-        claim_ref = db.collection('claims').add(claim)
-        claim_id = claim_ref[1].id
-
-        claims_created.append({
-            'claim_id': claim_id,
-            'worker_id': worker_id,
-            'name': worker['name'],
-            'payout_amount': payout_amount,
-            'severity': severity
+    
+    worker_id = data.get("worker_id")
+    event = data.get("event")
+    code = data.get("code")
+    severity = data.get("severity")
+    manual_claim = data.get("manual_claim", True)
+    zone = data.get("zone")
+    
+    if not all([worker_id, event, code, severity, zone]):
+        return jsonify({"success": False, "error": "Missing required fields"}), 400
+        
+    doc_ref = db.collection("workers").document(worker_id).get()
+    if not doc_ref.exists:
+        return jsonify({"success": False, "error": "Worker not found"}), 404
+        
+    worker = doc_ref.to_dict()
+    coverage = worker.get("coverage", 0)
+    
+    # 5-Layer ML validation placeholder
+    risk_prob, flags = analyze_fraud_risk_ml(worker, data, {})
+    
+    claim_id = f"CLM-{uuid.uuid4().hex[:6].upper()}"
+    payout_amt = 0
+    status = "skipped"
+    skip_reason = "Fraud flags detected" if risk_prob > 0.5 else "Manual verification required"
+    txn_id = None
+    
+    if risk_prob <= 0.1: 
+        status = "paid"
+        skip_reason = ""
+        # Mock simple logic: severe=100%, moderate=65%, minor=30%
+        multiplier = 1.0 if severity == "Severe" else (0.65 if severity == "Moderate" else 0.3)
+        payout_amt = round(coverage * multiplier)
+        txn_id = f"PAY-{uuid.uuid4().hex[:8].upper()}"
+        
+        db.collection("payments").add({
+            "payment_id": txn_id,
+            "uid": worker_id,
+            "employee_id": worker.get("employee_id"),
+            "type": "payout",
+            "amount": payout_amt,
+            "method": "upi",
+            "razorpay_txn_id": f"rzp_{uuid.uuid4().hex[:12]}",
+            "claim_id": claim_id,
+            "status": "success",
+            "created_at": firestore.SERVER_TIMESTAMP
         })
-
-    # Step 7: Return summary of what happened
-    return jsonify({
-        'message': f'Trigger check complete. {len(claims_created)} claim(s) created.',
-        'city': city,
-        'zone': zone,
-        'severity': severity,
-        'rainfall_mm': weather['rainfall_mm'],
-        'aqi': aqi_data['aqi'],
-        'claims_created': claims_created,
-        'workers_skipped': workers_skipped
-    }), 201
+        
+        update_kavach_score_static(worker_id, "legitimate_claim")
+        
+        db.collection("workers").document(worker_id).collection("notifications").add({
+            "type": "payout",
+            "title": "Claim Approved",
+            "msg": f"Your claim for {event} has been approved. ₹{payout_amt} is being transferred to your UPI ID.",
+            "read": False,
+            "timestamp": firestore.SERVER_TIMESTAMP
+        })
+    else:
+        update_kavach_score_static(worker_id, "suspicious_claim")
+        db.collection("workers").document(worker_id).collection("notifications").add({
+            "type": "warning",
+            "title": "Claim Processing",
+            "msg": f"Your claim for {event} has been flagged for manual administrative review.",
+            "read": False,
+            "timestamp": firestore.SERVER_TIMESTAMP
+        })
+        
+    now_str = datetime.utcnow().strftime('%b %d, %Y')
+    now_time = datetime.utcnow().strftime('%I:%M %p')
+    claim_doc = {
+        "id": claim_id,
+        "date": now_str,
+        "timestamp": firestore.SERVER_TIMESTAMP,
+        "event": event,
+        "code": code,
+        "severity": severity,
+        "status": status,
+        "payout": payout_amt,
+        "txn": txn_id,
+        "zone": zone,
+        "verification_layers": 5,
+        "fraud_flags": len(flags),
+        "skip_reason": skip_reason,
+        "timeline": [
+            {"time": now_time, "event": "Claim Initiated", "done": True},
+            {"time": now_time, "event": "ML Verification Passed" if status == "paid" else "Under Review", "done": status == "paid"}
+        ]
+    }
+    
+    db.collection("workers").document(worker_id).collection("claims").document(claim_id).set(claim_doc)
+    
+    return jsonify({"success": True, "claim": claim_doc}), 201

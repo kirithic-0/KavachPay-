@@ -233,37 +233,39 @@ def generate_orders_for_worker(customer_id, week_label, week_offset_days):
     zones  = ZONES_BY_CITY.get(city, ["Koramangala"])
     home_zone = worker["zone"]
 
-    # Seed based on worker + week so output is always consistent
-    seed_base = f"{customer_id}-{week_label}"
+    # Seed based on worker + week with high-entropy salt
+    # Using different multipliers for each week to force the hash far apart
+    salts = {"A": 1111, "B": 2222, "C": 3333, "D": 4444}
+    salt = salts.get(week_label, 0)
+    seed_str = f"{customer_id}-{week_label}-{salt}"
+    seed_int = int(hashlib.md5(seed_str.encode()).hexdigest(), 16)
+    local_rng = random.Random(seed_int)
 
     # Decide which days this worker worked this week (5–7 days)
-    num_workdays = 5 + (int(hashlib.md5(seed_base.encode()).hexdigest(), 16) % 3)
+    num_workdays = local_rng.randint(5, 7)
     all_days = list(range(7))
-    random.seed(int(hashlib.md5(seed_base.encode()).hexdigest(), 16))
-    workdays = sorted(random.sample(all_days, min(num_workdays, 7)))
+    workdays = sorted(local_rng.sample(all_days, num_workdays))
 
     orders = []
     order_counter = 1
 
+    # Apply the week offset to the actual date
     week_start = datetime.utcnow() - timedelta(days=week_offset_days + 6)
 
     for day_offset in workdays:
         order_date = (week_start + timedelta(days=day_offset)).strftime("%Y-%m-%d")
 
-        # 4–9 orders per working day
-        day_seed = f"{seed_base}-{day_offset}"
-        num_orders = 4 + (int(hashlib.md5(day_seed.encode()).hexdigest(), 16) % 6)
+        # 4–12 orders per working day
+        num_orders = local_rng.randint(4, 12)
 
         for i in range(num_orders):
-            order_seed = f"{day_seed}-{i}"
-
             # Pickup usually near home zone, drop anywhere in same city
             pickup_zone = home_zone
-            drop_zone   = zones[int(hashlib.md5((order_seed+"d").encode()).hexdigest(), 16) % len(zones)]
+            drop_zone   = local_rng.choice(zones)
 
             dist = zone_distance(pickup_zone, drop_zone)
-            # Amount: base ₹40 + ₹8/km + small random bonus
-            amount = round(40 + dist * 8 + seeded_random(order_seed+"a", 0, 30, 0))
+            # Amount: base ₹40 + ₹8/km + random bonus
+            amount = round(40 + dist * 8 + local_rng.randint(0, 50))
 
             # order_id: platform prefix + week + day + sequence
             platform_prefix = "SWG" if worker["platform"] == "Swiggy" else "ZMT"
@@ -322,6 +324,7 @@ def derive_typical_workdays(all_orders):
 # ROUTES
 # ─────────────────────────────────────────────────────────────
 
+@app.route("/")
 @app.route("/api/health")
 def health():
     return jsonify({"status": "Mock Platform API running", "port": 5001}), 200
@@ -329,34 +332,50 @@ def health():
 
 # ── 1. Login verification ─────────────────────────────────────
 @app.route("/platform/verify", methods=["POST"])
+@app.route("/mock/platform/connect", methods=["POST"])
 def verify_worker():
     """
     Verifies a worker's login credentials against platform records.
-    Body: { "phone": "9876543210", "employee_id": "BLR-1000001" }
-    Returns worker profile if verified, 401 if not found.
+    Returns worker profile + stats if verified.
     """
     data = request.get_json()
     phone       = data.get("phone", "").strip()
     employee_id = data.get("employee_id", "").strip()
 
     if not phone or not employee_id:
-        return jsonify({"verified": False, "error": "phone and employee_id are required"}), 400
+        return jsonify({"success": False, "error": "phone and employee_id are required"}), 400
 
     # Look up by employee_id
     customer_id = EMPLOYEE_TO_CUSTOMER.get(employee_id)
     if not customer_id:
-        return jsonify({"verified": False, "error": "employee_id not found in platform records"}), 404
+        return jsonify({"success": False, "error": "Employee ID not found in platform records."}), 404
 
     worker = MOCK_WORKERS[customer_id]
 
-    # Verify phone matches
     if worker["phone"] != phone:
-        return jsonify({"verified": False, "error": "phone number does not match platform records"}), 401
+        return jsonify({"success": False, "error": "Phone number does not match platform records."}), 401
 
     if not worker["active"]:
-        return jsonify({"verified": False, "error": "worker account is inactive on platform"}), 403
+        return jsonify({"success": False, "error": "Worker account is inactive on platform."}), 403
+
+    # Generate quick stats
+    weekly_incomes = []
+    weekly_distances = []
+    weekly_deliveries = []
+    for label, offset in zip(WEEK_LABELS, WEEK_OFFSETS):
+        orders = generate_orders_for_worker(customer_id, label, offset)
+        if orders:
+            week_days     = len(set(o["order_date"] for o in orders))
+            weekly_incomes.append(sum(o["amount_paid"] for o in orders))
+            weekly_distances.append(sum(o["distance"] for o in orders) / week_days if week_days else 0)
+            weekly_deliveries.append(len(orders) / week_days if week_days else 0)
+
+    avg_in = round(sum(weekly_incomes)/len(weekly_incomes), 2) if weekly_incomes else 0
+    avg_di = round(sum(weekly_distances)/len(weekly_distances), 2) if weekly_distances else 0
+    avg_de = round(sum(weekly_deliveries)/len(weekly_deliveries), 2) if weekly_deliveries else 0
 
     return jsonify({
+        "success":       True,
         "verified":      True,
         "customer_id":   worker["customer_id"],
         "employee_id":   worker["employee_id"],
@@ -366,8 +385,9 @@ def verify_worker():
         "platform":      worker["platform"],
         "city":          worker["city"],
         "zone":          worker["zone"],
-        "referral_code": worker["referral_code"],
-        "joined_date":   worker["joined_date"],
+        "avg_weekly_income": avg_in,
+        "avg_daily_distance": avg_di,
+        "avg_daily_deliveries": avg_de,
     }), 200
 
 
@@ -386,7 +406,11 @@ def get_orders(employee_id):
 
     all_orders = []
     for label, offset in zip(WEEK_LABELS, WEEK_OFFSETS):
-        if week_filter and label != week_filter.upper():
+        # Treat 'new' request as 'A' (most recent/incoming week)
+        effective_filter = week_filter.upper() if week_filter else None
+        if effective_filter == "NEW": effective_filter = "A"
+        
+        if effective_filter and label != effective_filter:
             continue
         orders = generate_orders_for_worker(customer_id, label, offset)
         all_orders.extend(orders)
@@ -440,6 +464,7 @@ def get_platform_worker(employee_id):
 
 # ── 5. Compute weekly stats for a worker ─────────────────────
 @app.route("/platform/stats/<employee_id>", methods=["GET"])
+@app.route("/mock/platform/stats/<employee_id>", methods=["GET"])
 def get_worker_stats(employee_id):
     """
     Computes aggregated stats from order data:

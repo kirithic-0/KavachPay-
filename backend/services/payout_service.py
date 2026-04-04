@@ -1,57 +1,82 @@
-"""
-services/payout_service.py — Updated for v6 schema
-Stores both customer_id and employee_id on payment records.
-"""
-
-import uuid
+# services/payout_service.py
+import razorpay
 from firebase_admin import firestore
-from services.firebase_service import get_db, get_worker_by_customer_id, update_worker
-from services.kavachscore import update_kavach_score
+from config import RAZORPAY_KEY_ID, RAZORPAY_SECRET
+from datetime import datetime
 
+db = firestore.client()
 
-def process_payout(customer_id, claim_id, amount, txn_id=None):
+# Initialize Razorpay client
+# Note: This will fail if keys are missing and we attempt a real call,
+# but the code below handles the mock case first.
+try:
+    rz_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_SECRET))
+except Exception:
+    rz_client = None
+
+def initiate_upi_payout(uid: str, employee_id: str, upi_id: str,
+                         amount: int, claim_id: str) -> dict:
     """
-    Simulates a UPI payout.
-    Records the payment, updates the claim, and bumps KavachScore.
+    Initiates a UPI payout via Razorpay Payout API.
+    Amount is in Rs. (integer). Razorpay requires paise (amount * 100).
+
+    Returns { success: bool, txn_id: str|None, error: str|None }
     """
-    db = get_db()
+    try:
+        # In test/dev mode, skip real Razorpay call and mock success
+        # Check if RAZORPAY_KEY_ID is missing or contains 'test'
+        if not RAZORPAY_KEY_ID or 'test' in (RAZORPAY_KEY_ID or '').lower():
+            mock_txn = f'pay_MOCK_{uid[-6:].upper()}_{int(datetime.utcnow().timestamp())}'
+            _write_payment_record(uid, employee_id, amount, claim_id, mock_txn, 'success')
+            return {'success': True, 'txn_id': mock_txn, 'error': None}
 
-    if not txn_id:
-        txn_id = f"pay_{uuid.uuid4().hex[:12]}"
+        if not rz_client:
+             return {'success': False, 'txn_id': None, 'error': 'Razorpay client not initialized'}
 
-    worker      = get_worker_by_customer_id(customer_id) or {}
-    employee_id = worker.get('employee_id', '')
+        # Real Razorpay Payout API call
+        payload = {
+            'account_number': '2323230089067',   # your Razorpay X account
+            'fund_account': {
+                'account_type': 'vpa',
+                'vpa': {'address': upi_id},
+                'contact': {
+                    'name': employee_id,
+                    'type': 'employee',
+                },
+            },
+            'amount': amount * 100,   # paise
+            'currency': 'INR',
+            'mode': 'UPI',
+            'purpose': 'payout',
+            'queue_if_low_balance': True,
+            'reference_id': claim_id,
+            'narration': f'KavachPay claim payout — {claim_id}',
+        }
+        response = rz_client.payout.create(payload)
+        txn_id = response.get('id')
+        _write_payment_record(uid, employee_id, amount, claim_id, txn_id, 'success')
+        return {'success': True, 'txn_id': txn_id, 'error': None}
 
-    # Record payment
-    db.collection('payments').add({
-        'customer_id': customer_id,
+    except Exception as e:
+        # Still write a failed payment record for audit trail
+        _write_payment_record(uid, employee_id, amount, claim_id, None, 'failed')
+        return {'success': False, 'txn_id': None, 'error': str(e)}
+
+
+def _write_payment_record(uid, employee_id, amount, claim_id, txn_id, status):
+    """Internal helper — writes payout payment to top-level payments collection."""
+    ts = int(datetime.utcnow().timestamp() * 1000)
+    payment_id = f'PAY-{uid[-6:].upper()}-{ts}'
+    db.collection('payments').document(payment_id).set({
+        'payment_id': payment_id,
+        'uid': uid,
         'employee_id': employee_id,
-        'claim_id':    claim_id,
-        'amount':      amount,
-        'type':        'payout',
-        'method':      'upi',
-        'txn_id':      txn_id,
-        'status':      'success',
-        'createdAt':   firestore.SERVER_TIMESTAMP,
+        'type': 'payout',
+        'amount': amount,
+        'method': 'upi',
+        'razorpay_txn_id': txn_id,
+        'claim_id': claim_id,
+        'status': status,
+        'created_at': firestore.SERVER_TIMESTAMP,
     })
-
-    # Update claim status
-    if claim_id:
-        db.collection('claims').document(claim_id).update({
-            'status': 'paid',
-            'txn_id': txn_id,
-        })
-
-    # Update worker total_paid
-    current_total = worker.get('total_paid', 0)
-    update_worker(customer_id, {'total_paid': current_total + amount})
-
-    # KavachScore bump
-    update_kavach_score(customer_id, 'legitimate_claim')
-
-    return {
-        'success': True,
-        'txn_id':  txn_id,
-        'amount':  amount,
-        'message': f'₹{amount} transferred via UPI successfully',
-    }
+    return payment_id

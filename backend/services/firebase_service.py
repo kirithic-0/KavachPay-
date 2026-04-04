@@ -1,10 +1,29 @@
-"""
-services/firebase_service.py — Updated for v6 schema
-All helpers use customer_id as the Firestore document ID.
-"""
+from firebase_admin import auth, firestore
+from functools import wraps
+from flask import request, jsonify
 
-from firebase_admin import firestore
+db = firestore.client()
 
+def require_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get('Authorization', '').strip()
+        print(f"[DEBUG] Auth header received: {'Present' if auth_header else 'Missing'}")
+        
+        if not auth_header or not auth_header.startswith('Bearer '):
+            print("[DEBUG] Missing or malformed Bearer token")
+            return jsonify({'error': 'Missing token'}), 401
+            
+        token = auth_header.replace('Bearer ', '').strip()
+        try:
+            decoded = auth.verify_id_token(token)
+            request.uid = decoded['uid']
+            print(f"[DEBUG] Auth successful for UID: {request.uid}")
+            return f(*args, **kwargs)
+        except Exception as e:
+            print(f"[DEBUG] Auth verification failed: {str(e)}")
+            return jsonify({'error': 'Unauthorized', 'detail': str(e)}), 401
+    return decorated
 
 def get_db():
     return firestore.client()

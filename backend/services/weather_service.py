@@ -1,77 +1,83 @@
 import requests
-from config import OPENWEATHER_API_KEY, WAQI_API_KEY
+from config import OPENWEATHER_KEY, WAQI_KEY
 
+# City → lat/lon for OpenWeatherMap (prevents ambiguous city names)
+CITY_COORDS = {
+    'Bangalore':  {'lat': 12.9716, 'lon': 77.5946},
+    'Chennai':    {'lat': 13.0827, 'lon': 80.2707},
+    'Mumbai':     {'lat': 19.0760, 'lon': 72.8777},
+    'Hyderabad':  {'lat': 17.3850, 'lon': 78.4867},
+    'Kolkata':    {'lat': 22.5726, 'lon': 88.3639},
+    'Pune':       {'lat': 18.5204, 'lon': 73.8567},
+    'Delhi':      {'lat': 28.6139, 'lon': 77.2090},
+}
 
-def check_weather(city, lat=None, lng=None):
+def get_weather(city: str) -> dict:
+    """
+    Fetch current weather for a city.
+    Returns { temp, description, humidity, wind_speed, rain_1h, icon }
+    Falls back to mock data if API key is missing.
+    """
+    if not OPENWEATHER_KEY:
+        return _mock_weather(city)
+
+    coords = CITY_COORDS.get(city, {})
+    lat = coords.get('lat', 12.9716)
+    lon = coords.get('lon', 77.5946)
+
+    url = (
+        f'https://api.openweathermap.org/data/2.5/weather'
+        f'?lat={lat}&lon={lon}&appid={OPENWEATHER_KEY}&units=metric'
+    )
     try:
-        url = "https://api.openweathermap.org/data/2.5/weather"
-        # Use lat/lng if provided, otherwise use city name
-        if lat and lng:
-            params = {"lat": lat, "lon": lng, "appid": OPENWEATHER_API_KEY, "units": "metric"}
-        else:
-            params = {"q": city, "appid": OPENWEATHER_API_KEY, "units": "metric"}
+        r = requests.get(url, timeout=5)
+        d = r.json()
+        return {
+            'temp': round(d['main']['temp']),
+            'description': d['weather'][0]['description'].title(),
+            'humidity': d['main']['humidity'],
+            'wind_speed': round(d['wind']['speed'] * 3.6, 1),  # m/s → km/h
+            'rain_1h': d.get('rain', {}).get('1h', 0),
+            'icon': d['weather'][0]['icon'],
+        }
+    except Exception:
+        return _mock_weather(city)
 
-        response = requests.get(url, params=params)
-        data = response.json()
+def get_aqi(city: str) -> dict:
+    """
+    Fetch AQI data for a city from WAQI.
+    Returns { aqi, category, pm25, pm10 }
+    """
+    if not WAQI_KEY:
+        return _mock_aqi(city)
 
-        if response.status_code != 200:
-            return None
-
-        rainfall = data.get("rain", {}).get("1h", 0)
-        wind_speed = data.get("wind", {}).get("speed", 0) * 3.6  # Convert m/s to km/h
-        description = data.get("weather", [{}])[0].get("description", "")
-
-        # Determine severity
-        if rainfall >= 100:
-            return {"type": "rain", "severity": "Severe",   "pct": 1.0,  "rainfall_mm": rainfall, "wind_kmh": wind_speed, "description": description}
-        elif rainfall >= 75:
-            return {"type": "rain", "severity": "Moderate", "pct": 0.65, "rainfall_mm": rainfall, "wind_kmh": wind_speed, "description": description}
-        elif rainfall >= 50:
-            return {"type": "rain", "severity": "Minor",    "pct": 0.3,  "rainfall_mm": rainfall, "wind_kmh": wind_speed, "description": description}
-
-        # Check for storm even without heavy rain
-        if wind_speed > 60:
-            return {"type": "storm", "severity": "Severe",  "pct": 1.0,  "rainfall_mm": rainfall, "wind_kmh": wind_speed, "description": description}
-
-        return {"type": "none", "severity": None, "pct": 0, "rainfall_mm": rainfall, "wind_kmh": wind_speed, "description": description}
-
-    except Exception as e:
-        print(f"Weather API error: {e}")
-        return None
-
-
-def check_aqi(city):
+    url = f'https://api.waqi.info/feed/{city}/?token={WAQI_KEY}'
     try:
-        url = f"https://api.waqi.info/feed/{city}/"
-        response = requests.get(url, params={"token": WAQI_API_KEY})
-        data = response.json()
+        r = requests.get(url, timeout=5)
+        d = r.json()
+        if d.get('status') != 'ok':
+            return _mock_aqi(city)
+        aqi = d['data']['aqi']
+        return {
+            'aqi': aqi,
+            'category': _aqi_category(aqi),
+            'pm25': d['data'].get('iaqi', {}).get('pm25', {}).get('v', 0),
+            'pm10': d['data'].get('iaqi', {}).get('pm10', {}).get('v', 0),
+        }
+    except Exception:
+        return _mock_aqi(city)
 
-        if data.get("status") != "ok":
-            return None
+def _aqi_category(aqi: int) -> str:
+    if aqi <= 50:    return 'Good'
+    if aqi <= 100:   return 'Moderate'
+    if aqi <= 150:   return 'Unhealthy for Sensitive'
+    if aqi <= 200:   return 'Unhealthy'
+    if aqi <= 300:   return 'Very Unhealthy'
+    return 'Hazardous'
 
-        aqi = data["data"]["aqi"]
+def _mock_weather(city: str) -> dict:
+    return {'temp': 28, 'description': 'Partly Cloudy', 'humidity': 72,
+            'wind_speed': 14.4, 'rain_1h': 0, 'icon': '02d'}
 
-        if aqi >= 400:
-            return {"type": "aqi", "severity": "Severe",   "pct": 1.0,  "aqi": aqi}
-        elif aqi >= 300:
-            return {"type": "aqi", "severity": "Moderate", "pct": 0.65, "aqi": aqi}
-        elif aqi >= 200:
-            return {"type": "aqi", "severity": "Minor",    "pct": 0.3,  "aqi": aqi}
-
-        return {"type": "none", "severity": None, "pct": 0, "aqi": aqi}
-
-    except Exception as e:
-        print(f"AQI API error: {e}")
-        return None
-
-
-def get_worst_disruption(weather, aqi):
-    """Returns whichever disruption is more severe between weather and AQI"""
-    severity_rank = {None: 0, "Minor": 1, "Moderate": 2, "Severe": 3}
-
-    weather_rank = severity_rank.get(weather.get("severity") if weather else None, 0)
-    aqi_rank = severity_rank.get(aqi.get("severity") if aqi else None, 0)
-
-    if weather_rank == 0 and aqi_rank == 0:
-        return None
-    return weather if weather_rank >= aqi_rank else aqi
+def _mock_aqi(city: str) -> dict:
+    return {'aqi': 85, 'category': 'Moderate', 'pm25': 42, 'pm10': 58}
