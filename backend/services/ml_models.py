@@ -195,14 +195,53 @@ def m2_detect_fraud(
     measured_value: float = 0.0,
     zone_inactivity_pct: float = 0.70,  # fraction of zone workers inactive
 ) -> dict:
-    # ── TEMPORARY FIX TO APPROVE CLAIMS ──
+    # ── ML MODEL START (M2): Replace with XGBoost Classifier ──
+    fraud_prob = 0.10
+    flags      = []
+
+    # 1. KavachScore heuristic (lower score = higher risk)
+    if kavach_score < 700:
+        fraud_prob += 0.15
+        if kavach_score < 550:
+            fraud_prob += 0.20
+            flags.append('low_kavach_score_risk')
+
+    # 2. Claim history heuristic
+    if past_claims > 2:
+        correct_ratio = past_correct_claims / past_claims
+        if correct_ratio < 0.5:
+            fraud_prob += 0.25
+            flags.append('high_past_fraud_ratio')
+
+    # 3. Activity heuristic
+    if orders_during_disruption > 0:
+        fraud_prob += 0.40
+        flags.append('activity_during_disruption_detected')
+
+    # 4. Severe/Zone Correlation discount
+    if is_severe and zone_inactivity_pct >= 0.85:
+        fraud_prob -= 0.15
+
+    # Final Decision
+    threshold = 0.45
+    # High score (e.g. 850+) often gets "auto_approve" if no flags
+    if kavach_score >= 850 and not flags and fraud_prob < threshold:
+        decision = 'auto_approve'
+    elif fraud_prob >= threshold:
+        decision = 'reject'
+    elif fraud_prob >= (threshold - 0.15):
+        decision = 'manual_review'
+    else:
+        decision = 'approve'
+
     return {
-        'decision':     'auto_approve',
-        'fraud_prob':   0.05,
-        'threshold':    0.35,
-        'flags':        [],
-        'auto_approve': True,
+        'decision':     decision,
+        'fraud_prob':   round(max(0.01, min(0.99, fraud_prob)), 3),
+        'threshold':    threshold,
+        'flags':        flags,
+        'auto_approve': decision == 'auto_approve',
     }
+    # ── ML MODEL END (M2) ──
 
 
 # ===========================================================================
@@ -382,10 +421,60 @@ def m7_classify_claim_text(text: str, trigger_code: str) -> dict:
         predicted_code = _M7_MODEL.predict(X)[0]
         confidence = max(_M7_MODEL.decision_function(X)[0])
     """
-    # ── TEMPORARY FIX TO APPROVE CLAIMS ──
-    return {
-        'predicted_code': trigger_code,
-        'confidence': 1.0,
-        'manual_review': False,
-        'reason': 'text_matches_trigger',
-    }
+    # ── ML MODEL START (M7): Replace with Linear SVM triage ──
+    from collections import Counter
+    text = text.lower()
+    
+    # 1. Very short text check (suspicious)
+    if not text or len(text) < 10:
+        return {
+            'predicted_code': trigger_code,
+            'confidence': 0.15,
+            'manual_review': True,
+            'reason': 'suspiciously_short_description',
+        }
+
+    # 2. Heuristic: count keyword occurrences (normalized TF-IDF mock)
+    scores = {}
+    for code, keywords in _KEYWORD_MAP.items():
+        count = sum(1 for k in keywords if k in text)
+        if count:
+            scores[code] = count
+
+    # 3. Decision
+    if not scores:
+        return {
+            'predicted_code': 'OTHER',
+            'confidence': 0.05,
+            'manual_review': True,
+            'reason': 'generic_text_no_keywords',
+        }
+    
+    best_code = max(scores, key=scores.get)
+    confidence = min(0.95, scores[best_code] / 3.0) # mock confidence
+
+    # Cross-reference with the trigger (M4 trigger code)
+    if best_code == trigger_code:
+        return {
+            'predicted_code': best_code,
+            'confidence': confidence,
+            'manual_review': False,
+            'reason': 'text_matches_trigger',
+        }
+    else:
+        # Confidently identifying a different type of disruption
+        if confidence > 0.60:
+            return {
+                'predicted_code': best_code,
+                'confidence': confidence,
+                'manual_review': True,
+                'reason': f'text_mismatch(is_{best_code}_not_{trigger_code})',
+            }
+        else:
+            return {
+                'predicted_code': trigger_code,
+                'confidence': 0.40,
+                'manual_review': True,
+                'reason': 'text_unclear_mismatch',
+            }
+    # ── ML MODEL END (M7) ──

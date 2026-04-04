@@ -342,7 +342,7 @@ export default function AdminDashboard({ onBack }) {
                                 ].map((kpi, i) => (
                                     <div key={i} style={{ backgroundColor: '#1E2130', borderRadius: 12, padding: 18, border: '1px solid #2D3348' }}>
                                         <p style={{ color: '#94A3B8', fontSize: 12, marginBottom: 12, lineHeight: 1.4 }}>{kpi.label}</p>
-                                        <p style={{ color: 'white', fontWeight: 800, fontSize: 26, letterSpacing: -0.5 }}>{kpi.value}</p>
+                                        <p style={{ color: kpi.color, fontWeight: 800, fontSize: 26, letterSpacing: -0.5 }}>{kpi.value}</p>
                                         <p style={{ color: '#6B7280', fontSize: 11, marginTop: 4 }}>{kpi.sub}</p>
                                     </div>
                                 ))}

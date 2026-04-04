@@ -200,8 +200,8 @@ def run_5_layer_check(worker: dict, disruption_code: str, zone: str):
 
     # --- Layer 5: KavachScore floor ---
     score = worker.get('kavach_score', 750)
-    if score < 300:
-        return 4, f'Layer 5 failed: KavachScore {score} below minimum 300', 0
+    if score < 500:
+        return 4, f'Layer 5 failed: KavachScore {score} below minimum 500', 0
 
     return 5, None, 0
 
