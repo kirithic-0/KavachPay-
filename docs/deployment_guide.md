@@ -39,9 +39,9 @@ Go to [dashboard.render.com](https://dashboard.render.com) and follow these step
 4.  **Runtime**: `Python 3`
 5.  **Build Command**: `pip install -r requirements.txt`
 6.  **Start Command**: `gunicorn app:create_app()`
-7.  **Advanced → Environment Variables**:
-    *   `FIREBASE_SERVICE_ACCOUNT_JSON`: Copy the contents of your `firebase-credentials.json` here (or upload the file via Secret Files in Render).
-    *   Add any other vars from your `.env` file.
+    7.  **Advanced → Environment Variables**:
+        *   `FIREBASE_SERVICE_ACCOUNT_JSON`: Copy the contents of your `firebase-credentials.json` here (or upload the file via Secret Files in Render).
+        *   Add any other vars from your `.env` file.
 
 ### Step 2.2: Mock Platform API
 Repeat the steps above with these changes:
