@@ -135,18 +135,6 @@ export default function Forum({ worker, lang }) {
 
     const currentLocation = scope === 'zone' ? selectedZone : selectedCity;
 
-    useEffect(() => {
-        const unsubscribe = loadMessages();
-        loadAlerts();
-        return () => {
-            if (typeof unsubscribe === 'function') unsubscribe();
-        };
-    }, [scope, selectedZone, selectedCity, loadMessages, loadAlerts]);
-
-    useEffect(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
-
     const loadMessages = React.useCallback(() => {
         setLoading(true);
         const colPath = `forum/${scope}_${currentLocation}/messages`;
@@ -168,6 +156,18 @@ export default function Forum({ worker, lang }) {
         const alertData = await api.getDisruptionAlerts(selectedCity);
         setAlerts(alertData);
     }, [selectedCity]);
+
+    useEffect(() => {
+        const unsubscribe = loadMessages();
+        loadAlerts();
+        return () => {
+            if (typeof unsubscribe === 'function') unsubscribe();
+        };
+    }, [scope, selectedZone, selectedCity, loadMessages, loadAlerts]);
+
+    useEffect(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
 
     const handleSend = async () => {
         if (!input.trim() || !canPost || sending) return;

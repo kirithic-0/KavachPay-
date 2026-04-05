@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useTheme, KavachLogo } from './App';
+import { KavachLogo } from './App';
 
 // ─── API CONFIG (Person 2 — set REACT_APP_API_URL in .env) ───
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -400,7 +400,6 @@ export default function Signup({ onComplete, onBack, lang: propLang, setLang: pr
     const textMuted = '#6B7280';
     const inputBg = '#FFFFFF';
     const inputBorder = '#D1D5DB';
-    const navBg = '#08101F';
 
     const [step, setStep] = useState(1);
     const [policyType, setPolicyType] = useState('individual');
