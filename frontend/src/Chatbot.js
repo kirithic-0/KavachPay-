@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { KavachLogo } from './App';
 
 // ─── API CONFIG ───
 const GEMINI_KEY = process.env.REACT_APP_GEMINI_KEY;

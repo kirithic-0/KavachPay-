@@ -86,7 +86,6 @@ export default function AdminDashboard({ onBack }) {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [hoveredRow, setHoveredRow] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
 
     // Simulate Modal State
     const [isSimulateModalOpen, setIsSimulateModalOpen] = useState(false);
@@ -143,7 +142,6 @@ export default function AdminDashboard({ onBack }) {
                 setLoading(false);
             } catch (e) {
                 console.error("Dashboard Load Error:", e);
-                setError(e.message);
                 setLoading(false);
                 if (e.message && (e.message.toLowerCase().includes('unauthorized') || e.message.toLowerCase().includes('denied') || e.message.toLowerCase().includes('token'))) {
                     localStorage.removeItem('adminToken');
@@ -152,7 +150,7 @@ export default function AdminDashboard({ onBack }) {
             }
         };
         loadAllData();
-    }, [onBack]);
+    }, [onBack, searchWorker, sortBy]);
 
     // Refresh workers on search/sort
     useEffect(() => {
@@ -164,7 +162,7 @@ export default function AdminDashboard({ onBack }) {
             if (wk.workers) setWorkers(wk.workers);
         };
         refreshWorkers();
-    }, [searchWorker, sortBy]);
+    }, [searchWorker, sortBy, loading]);
 
     const getDisruptionType = (code) => DISRUPTION_TYPES.find(d => d.code === code);
     const getSeverityColor = (s) => s === 'Severe' ? '#EF4444' : s === 'Moderate' ? '#F97316' : '#10B981';

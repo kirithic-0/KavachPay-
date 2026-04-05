@@ -4,13 +4,9 @@ import AdminLogin from './AdminLogin';
 import Signup from './Signup';
 import Dashboard from './Dashboard';
 import AdminDashboard from './AdminDashboard';
-import Chatbot from './Chatbot';
 
 export const ThemeContext = React.createContext();
 export const useTheme = () => React.useContext(ThemeContext);
-
-// ─── API CONFIG ───
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 // ─── DESIGN TOKENS ───
 const C = {
@@ -292,7 +288,6 @@ function getReply(msg) {
 }
 
 function LandingChatbot({ onSignup, lang }) {
-  const t = T[lang] || T.en;
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([{ from: 'bot', text: 'Welcome to KavachPay. How can I help you today?' }]);
   const [input, setInput] = useState('');

@@ -98,20 +98,6 @@ const MOCK_MESSAGES = {
     ],
 };
 
-const MOCK_ALERTS = {
-    'Bangalore': [
-        { code: 'HRA', label: 'Heavy Rain', value: '82mm', zone: 'Koramangala', severity: 'Moderate', time: '3:01 PM', color: '#3B82F6' },
-        { code: 'FOG', label: 'Dense Fog', value: 'Vis 30m', zone: 'Whitefield', severity: 'Minor', time: '7:45 AM', color: '#6B7280' },
-    ],
-    'Chennai': [
-        { code: 'FLD', label: 'Flood Alert', value: 'NDMA L3', zone: 'Adyar', severity: 'Severe', time: '9:45 AM', color: '#06B6D4' },
-        { code: 'MRA', label: 'Moderate Rain', value: '58mm', zone: 'Velachery', severity: 'Minor', time: '11:00 AM', color: '#60A5FA' },
-    ],
-    'Mumbai': [
-        { code: 'SAQ', label: 'Severe AQI', value: 'AQI 412', zone: 'Dharavi', severity: 'Severe', time: '11:45 AM', color: '#F97316' },
-        { code: 'WND', label: 'High Wind', value: '72 kmh', zone: 'Andheri', severity: 'Moderate', time: '4:00 PM', color: '#10B981' },
-    ],
-};
 
 const CITY_ZONES = {
     'Bangalore': ['Koramangala, Bangalore', 'Whitefield, Bangalore', 'HSR Layout, Bangalore', 'Indiranagar, Bangalore', 'JP Nagar, Bangalore', 'Electronic City, Bangalore'],
@@ -128,7 +114,6 @@ const ALL_CITIES = Object.keys(CITY_ZONES);
 export default function Forum({ worker, lang }) {
     const workerZone = worker?.zone || 'Koramangala, Bangalore';
     const workerCity = worker?.city || 'Bangalore';
-    const workerName = worker?.name || 'Ravi Kumar';
 
     const [scope, setScope] = useState('zone'); // 'zone' or 'city'
     const [selectedCity, setSelectedCity] = useState(workerCity);
@@ -156,13 +141,13 @@ export default function Forum({ worker, lang }) {
         return () => {
             if (typeof unsubscribe === 'function') unsubscribe();
         };
-    }, [scope, selectedZone, selectedCity]);
+    }, [scope, selectedZone, selectedCity, loadMessages, loadAlerts]);
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    const loadMessages = () => {
+    const loadMessages = React.useCallback(() => {
         setLoading(true);
         const colPath = `forum/${scope}_${currentLocation}/messages`;
         const q = query(collection(db, colPath), orderBy("timestamp", "asc"));
@@ -177,12 +162,12 @@ export default function Forum({ worker, lang }) {
         });
 
         return unsubscribe;
-    };
+    }, [scope, currentLocation]);
 
-    const loadAlerts = async () => {
+    const loadAlerts = React.useCallback(async () => {
         const alertData = await api.getDisruptionAlerts(selectedCity);
         setAlerts(alertData);
-    };
+    }, [selectedCity]);
 
     const handleSend = async () => {
         if (!input.trim() || !canPost || sending) return;

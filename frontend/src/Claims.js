@@ -127,9 +127,6 @@ const LangToggle = ({ lang, setLang }) => (
 export default function Claims({ worker, onBack, lang: propLang, setLang: propSetLang }) {
     const [lang, setLang] = useState(propLang || 'en');
     const t = T[lang] || T.en;
-    const coverage = worker?.coverage || 1200;
-    const zone = worker?.zone || 'Koramangala, Bangalore';
-
     const [claims, setClaims] = useState([]);
     const [loading, setLoading] = useState(true);
 

@@ -279,7 +279,6 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
     const [disruptionHistory, setDisruptionHistory] = useState([]);
     const [notifications, setNotifications] = useState([]);
     const [scoreHistory, setScoreHistory] = useState([]);
-    const [scoreProgress, setScoreProgress] = useState(0);
 
     const photoInputRef = useRef(null);
     const t = T[lang] || T.en;
@@ -337,7 +336,7 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
 
     useEffect(() => {
         let start = 0;
-        const step = score / (1200 / 16);
+        const step = (worker?.kavach_score || 750) / (1200 / 16);
         const timer = setInterval(() => {
             start += step;
             if (start >= worker?.kavach_score || 750) { setAnimatedScore(worker?.kavach_score || 750); clearInterval(timer); }
@@ -350,7 +349,7 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
         if (editMode) {
             setEditForm({ name, email, phone, city, zone, platform, upiId: worker?.upiId || 'ravi@upi' });
         }
-    }, [editMode]);
+    }, [editMode, name, email, phone, city, zone, platform, worker?.upiId]);
 
     useEffect(() => {
         const loadEverything = async () => {
@@ -417,7 +416,7 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
             }
         };
         loadEverything();
-    }, [worker?.uid]);
+    }, [worker?.uid, worker?.coverage, setWorker]);
 
     useEffect(() => {
         const p = Math.round((earnedSoFar / avgIncome) * 100);
@@ -1071,7 +1070,7 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
 
                 {/* FORUM TAB */}
                 {tab === 'forum' && (
-                    <Forum worker={{ ...worker, zone, name, city, zone: zone, city: city }} lang={lang} />
+                    <Forum worker={{ ...worker, zone, name, city }} lang={lang} />
                 )}
             </div>
 
