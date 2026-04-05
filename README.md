@@ -33,7 +33,7 @@
 Shiv Nadar University Chennai · B.Tech AI & Data Science · Guidewire DEVTrails 2026
 
 </div>
-VIDEO PHASE 2 : https://drive.google.com/file/d/13UAC9-UZrNRMCEkzFTnVKLqaBZfl7v1G/view?usp=sharing
+VIDEO PHASE 2 : https://youtu.be/9fprTyhbpL8
 ---
 
 ## Table of Contents
