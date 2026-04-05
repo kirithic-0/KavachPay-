@@ -27,7 +27,7 @@ import atexit
 
 def create_app():
     app = Flask(__name__)
-    CORS(app)
+    CORS(app, origins=["https://kavach-pay5.vercel.app/"])
 
     # Register all route blueprints
     app.register_blueprint(auth_bp,         url_prefix="/api/auth")
