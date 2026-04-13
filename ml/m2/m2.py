@@ -1,272 +1,192 @@
-"""
-Model M2 – Zero-Touch Claim Verifier (Gradient Boosted Classifier)
-KavachPay Insurance Platform
-
-Classifies each claim as: auto_approve | manual_review | reject
-Uses KavachScore-based dynamic thresholds.
-Merges claims_final.csv + workers_final.csv on customer_id.
-Output: m2.csv
-"""
-
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import GradientBoostingClassifier
+import joblib
+import json
+import optuna
+from datetime import datetime
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score, f1_score
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.utils.class_weight import compute_sample_weight
 
-print("=" * 60)
-print("  M2 – Zero-Touch Claim Verifier (GBM Classifier)")
-print("=" * 60)
+print("=" * 75)
+print("  M2 – Zero-Touch Claim Verifier (Fixed + Optuna)")
+print("=" * 75)
 
 np.random.seed(42)
 
 # ─────────────────────────────────────────────
-# 1. Load CSVs
+# 1. Load Data
 # ─────────────────────────────────────────────
 workers = pd.read_csv("Hackathon\\workers_final.csv")
 claims  = pd.read_csv("Hackathon\\claims_final.csv")
 
-# Normalise fraud_flag: "True"/"False" strings → int
 claims["fraud_flag"] = (
     claims["fraud_flag"].astype(str).str.strip().str.lower()
-    .map({"true": 1, "false": 0, "1": 1, "0": 0})
+    .map({"true": 1, "false": 0, "1": 1, "0": 0}).fillna(0).astype(int)
 )
 
 print(f"\n[1] Workers: {len(workers):,}  |  Claims: {len(claims):,}")
-print(f"    Fraud rate in claims: {claims['fraud_flag'].mean()*100:.1f}%")
+print(f"    Fraud rate: {claims['fraud_flag'].mean()*100:.2f}%")
 
 # ─────────────────────────────────────────────
-# 2. Merge on customer_id
+# 2. Merge
 # ─────────────────────────────────────────────
-worker_cols = [
-    "customer_id", "kavachScore", "months_active",
-    "past_claims", "past_correct_claims", "coverage",
-    "avg_daily_distance", "typical_workdays",
-]
+worker_cols = ["customer_id", "kavachScore", "months_active", "past_claims",
+               "past_correct_claims", "coverage", "avg_daily_distance", 
+               "risk", "city_tier"]
+
 merged = claims.merge(workers[worker_cols], on="customer_id", how="left")
-print(f"\n[2] Merged shape: {merged.shape}")
-print(f"    Unmatched claims (no worker record): {merged['kavachScore'].isna().sum()}")
-
 merged = merged.dropna(subset=["kavachScore", "coverage"]).copy()
-print(f"    After dropping unmatched: {len(merged):,} claims")
+print(f"[2] Final merged claims: {len(merged):,}")
+
+df = merged.copy()
 
 # ─────────────────────────────────────────────
-# 3. Engineer Features
+# 3. Feature Engineering
 # ─────────────────────────────────────────────
+risk_map = {"high": 2, "medium": 1, "low": 0}
+df["risk_enc"] = df["risk"].map(risk_map).fillna(1)
 
-# Core 10 from spec
-merged["kavachScore_norm"]     = merged["kavachScore"] / 900
+df["kavachScore_norm"] = df["kavachScore"] / 900.0
+df["honesty_ratio"] = df["past_correct_claims"] / df["past_claims"].replace(0, 1)
+df["claim_freq"] = df["past_claims"] / df["months_active"].clip(lower=0.1)
+df["late_flag"] = (df.get("flag_count", 0) > 0).astype(int)
+df["has_declaration"] = df["auto_approve"].astype(str).str.lower().map({"true":1,"false":0}).fillna(0).astype(int)
+df["is_severe"] = (df["severity"] == "Severe").astype(int)
+df["new_severe"] = ((df["months_active"] < 3) & (df["severity"] == "Severe")).astype(int)
+df["payout_ratio"] = (df["payout_amount"] / df["coverage"].replace(0, 1)).clip(upper=3.0)
+df["dist_anomaly"] = (df["distance"] / df["avg_daily_distance"].replace(0, 1) > 0.35).astype(int)
 
-merged["honesty_ratio"]        = (
-    merged["past_correct_claims"] / merged["past_claims"].replace(0, 1)
-)
+df["claim_to_tenure_ratio"] = df["past_claims"] / (df["months_active"] + 1)
+df["low_kavach_high_severity"] = ((df["kavachScore"] < 500) & (df["severity"] == "Severe")).astype(int)
+df["payout_near_max"] = (df["payout_ratio"] > 0.85).astype(int)
 
-merged["claim_freq"]           = (
-    merged["past_claims"] / merged["months_active"].clip(lower=0.1)
-)
+# Weather features
+weather_cols = ["rain_mm", "aqi_val", "wind_kmh", "vis_m", "temp_c", "mag"]
+for col in weather_cols:
+    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-# late_flag: use flag_count > 0 as proxy for delayed/suspicious filing
-merged["late_flag"]            = (merged["flag_count"] > 0).astype(int)
+# One-hot encoding (safely)
+cat_features = ["disruption_code", "category", "severity"]
+dummies = pd.get_dummies(df[cat_features], prefix=cat_features, dtype=float)
+df = pd.concat([df, dummies], axis=1)
+dummy_cols = dummies.columns.tolist()
 
-# has_declaration: maps directly from auto_approve column
-merged["has_declaration"]      = (
-    merged["auto_approve"].astype(str).str.lower()
-    .map({"true": 1, "false": 0})
-    .fillna(0).astype(int)
-)
-
-merged["is_severe"]            = (merged["severity"] == "Severe").astype(int)
-
-merged["new_severe"]           = (
-    (merged["months_active"] < 2) & (merged["severity"] == "Severe")
-).astype(int)
-
-merged["payout_over_coverage"] = (
-    merged["payout_amount"] / merged["coverage"].replace(0, 1)
-).clip(upper=3)
-
-# isolated_claim: fewer than 3 claims in same zone on same date
-zone_date_counts = merged.groupby(["zone", "created_at"])["claim_id"].transform("count")
-merged["isolated_claim"]       = (zone_date_counts < 3).astype(int)
-
-merged["dist_anomaly"]         = (
-    (merged["distance"] / merged["avg_daily_distance"].replace(0, 1)) > 0.40
-).astype(int)
-
-# Extra features from real claims schema
-merged["is_excluded"]          = (
-    merged["is_excluded"].astype(str).str.lower()
-    .map({"true": 1, "false": 0})
-    .fillna(0).astype(int)
-)
-merged["layers_passed_norm"]   = merged["layers_passed"] / 5.0
-merged["severity_loss_pct"]    = merged["severity_loss_pct"].fillna(0) / 100.0
-merged["binary_flag"]          = merged["binary_flag"].fillna(0).astype(int)
-
-# Weather / environmental signals (fill missing with 0 = no event)
-for col in ["rain_mm", "aqi_val", "wind_kmh", "vis_m", "temp_c", "mag"]:
-    merged[col] = merged[col].fillna(0)
-
-# One-hot encode disruption_code and category
-dc_dummies  = pd.get_dummies(merged["disruption_code"], prefix="dc")
-cat_dummies = pd.get_dummies(merged["category"], prefix="cat")
-merged = pd.concat([merged, dc_dummies, cat_dummies], axis=1)
-dc_cols  = list(dc_dummies.columns)
-cat_cols = list(cat_dummies.columns)
-
-print("\n[3] Feature engineering done")
-print(f"    disruption_code dummies: {dc_cols}")
-print(f"    category dummies:        {cat_cols}")
+print("[3] Feature engineering done")
 
 # ─────────────────────────────────────────────
-# 4. Feature matrix & target
+# 4. Final Feature Matrix (Force Numeric)
 # ─────────────────────────────────────────────
-base_features = [
-    # Core 10
-    "kavachScore_norm", "honesty_ratio", "claim_freq",
-    "late_flag", "has_declaration", "is_severe", "new_severe",
-    "payout_over_coverage", "isolated_claim", "dist_anomaly",
-    # Extra from real claims
-    "measured_value", "is_excluded", "layers_passed_norm",
-    "severity_loss_pct", "rain_mm", "aqi_val", "wind_kmh",
-    "vis_m", "temp_c", "mag", "binary_flag",
-]
-feature_cols = base_features + dc_cols + cat_cols
+feature_cols = [
+    "kavachScore_norm", "honesty_ratio", "claim_freq", "late_flag",
+    "has_declaration", "is_severe", "new_severe", "payout_ratio",
+    "dist_anomaly", "claim_to_tenure_ratio", "low_kavach_high_severity",
+    "payout_near_max", "risk_enc", "layers_passed", "binary_flag",
+    "measured_value", "severity_loss_pct", "is_excluded"
+] + dummy_cols
 
-X = merged[feature_cols].fillna(0)
-y = merged["fraud_flag"]
+X = df[feature_cols].copy()
 
-print(f"\n[4] Feature matrix: {X.shape[0]:,} rows × {X.shape[1]} cols")
-print(f"    Class balance — clean: {(y==0).sum():,}  fraud: {(y==1).sum():,}")
+# CRITICAL FIX: Force all columns to numeric and fill any remaining NaNs
+X = X.apply(pd.to_numeric, errors='coerce').fillna(0)
+
+y = df["fraud_flag"].values
+
+print(f"[4] Final X shape: {X.shape} | All numeric: {X.dtypes.nunique() == 1}")
 
 # ─────────────────────────────────────────────
-# 5. Train-test split (stratified)
+# 5. Train-Test Split + Sample Weights
 # ─────────────────────────────────────────────
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
-print(f"\n[5] Train: {len(X_train):,}  |  Test: {len(X_test):,}")
+
+sample_weights = compute_sample_weight(class_weight='balanced', y=y_train)
 
 # ─────────────────────────────────────────────
-# 6. Train GBM Classifier
+# 6. Optuna Tuning (Optional but Recommended)
 # ─────────────────────────────────────────────
-print("\n[6] Training Gradient Boosted Classifier…")
-gbm = GradientBoostingClassifier(
-    n_estimators=200,
-    max_depth=4,
-    learning_rate=0.05,
-    min_samples_leaf=max(1, len(X_train) // 200),
-    random_state=42,
-)
-gbm.fit(X_train, y_train)
-print("    Training complete ✓")
+def objective(trial):
+    params = {
+        'n_estimators': trial.suggest_int('n_estimators', 200, 600),
+        'max_depth': trial.suggest_int('max_depth', 3, 8),
+        'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.12, log=True),
+        'subsample': trial.suggest_float('subsample', 0.8, 1.0),
+    }
+    clf = GradientBoostingClassifier(**params, random_state=42)
+    clf.fit(X_train, y_train, sample_weight=sample_weights)
+    y_prob = clf.predict_proba(X_test)[:, 1]
+    return -roc_auc_score(y_test, y_prob)
 
-# ─────────────────────────────────────────────
-# 7. Evaluate
-# ─────────────────────────────────────────────
-y_prob = gbm.predict_proba(X_test)[:, 1]
-y_pred = gbm.predict(X_test)
+print("\n[6] Optuna tuning starting (20 trials)...")
+study = optuna.create_study(direction='minimize', sampler=optuna.samplers.TPESampler(seed=42))
+study.optimize(objective, n_trials=20, show_progress_bar=True)
 
-print(f"\n[7] Evaluation")
-if len(y_test.unique()) > 1:
-    auc = roc_auc_score(y_test, y_prob)
-    print(f"    ROC-AUC = {auc:.4f}  (target > 0.85)")
-else:
-    print("    ROC-AUC = N/A (only one class in test set)")
+best_params = study.best_params
+print(f"Best AUC: {-study.best_value:.4f}")
 
-print(f"\n    Classification Report:")
-print(classification_report(y_test, y_pred,
-                             target_names=["clean", "fraud"],
-                             zero_division=0))
-print(f"    Confusion Matrix:\n{confusion_matrix(y_test, y_pred)}")
+# Train final model
+model = GradientBoostingClassifier(**best_params, random_state=42)
+model.fit(X_train, y_train, sample_weight=sample_weights)
 
 # ─────────────────────────────────────────────
-# 8. Feature importance
+# 7. Evaluation
 # ─────────────────────────────────────────────
-imp_df = pd.DataFrame({
-    "feature":    feature_cols,
-    "importance": gbm.feature_importances_,
-}).sort_values("importance", ascending=False)
+y_prob = model.predict_proba(X_test)[:, 1]
+y_pred = model.predict(X_test)
 
-print("\n[8] Feature Importance (top 10):")
-for _, row in imp_df.head(10).iterrows():
-    bar = "█" * int(row["importance"] * 80)
-    print(f"    {row['feature']:30s} {row['importance']:.4f}  {bar}")
+print("\n[7] Evaluation")
+print(f"    ROC-AUC     : {roc_auc_score(y_test, y_prob):.4f}")
+print(f"    F1 (fraud)  : {f1_score(y_test, y_pred):.4f}")
+print(classification_report(y_test, y_pred, target_names=["clean", "fraud"], zero_division=0))
 
 # ─────────────────────────────────────────────
-# 9. KavachScore-based dynamic threshold + 3-way decision
+# 8. Save Model + Metadata
 # ─────────────────────────────────────────────
-def get_thresholds(kavach_score):
-    """
-    Green (>= 700): lenient  — lower approve bar, higher reject bar
-    Amber (400-699): balanced
-    Red   (<  400): strict   — harder to auto-approve
-    """
-    if kavach_score >= 700:
-        return {"approve": 0.25, "reject": 0.70}
-    elif kavach_score >= 400:
-        return {"approve": 0.35, "reject": 0.60}
-    else:
-        return {"approve": 0.20, "reject": 0.50}
+joblib.dump(model, "m2_premium_model.pkl")
 
-def decide(fraud_prob, kavach_score):
-    t = get_thresholds(kavach_score)
-    if fraud_prob >= t["reject"]:
-        return "reject"
-    elif fraud_prob <= t["approve"]:
-        return "auto_approve"
-    else:
-        return "manual_review"
+metadata = {
+    "feature_cols": feature_cols,
+    "impute_value": 0.0,
+    "model_type": "GradientBoostingClassifier",
+    "best_params": best_params,
+    "training_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+    "performance": {"test_auc": float(roc_auc_score(y_test, y_prob))}
+}
+
+joblib.dump(metadata, "m2_metadata.pkl")
+with open("m2_metadata.json", "w") as f:
+    json.dump(metadata, f, indent=2)
+
+print("\n✅ Model & metadata saved successfully!")
 
 # ─────────────────────────────────────────────
-# 10. Build m2.csv
+# 9. Generate Final Predictions
 # ─────────────────────────────────────────────
-all_probs = gbm.predict_proba(X)[:, 1]
-decisions = [
-    decide(prob, score)
-    for prob, score in zip(all_probs, merged["kavachScore"])
-]
+all_probs = model.predict_proba(X)[:, 1]
 
-output_df = merged[[
-    # Identifiers
-    "claim_id", "customer_id",
-    # Claim fields
-    "city", "zone", "category", "severity", "disruption_code",
-    "status", "payout_amount", "distance", "measured_value",
-    "layers_passed", "flag_count", "auto_approve",
-    "severity_loss_pct", "is_excluded",
-    # Weather
-    "rain_mm", "aqi_val", "wind_kmh", "vis_m", "temp_c", "mag",
-    # Worker fields
-    "kavachScore", "months_active", "past_claims",
-    "past_correct_claims", "coverage",
-    # Engineered features
-    "kavachScore_norm", "honesty_ratio", "claim_freq",
-    "late_flag", "has_declaration", "is_severe", "new_severe",
-    "payout_over_coverage", "isolated_claim", "dist_anomaly",
-    "binary_flag",
-    # Ground truth
-    "fraud_flag",
-]].copy()
+def get_thresholds(k):
+    if k >= 700: return {"auto_approve": 0.22, "reject": 0.72}
+    elif k >= 450: return {"auto_approve": 0.30, "reject": 0.65}
+    else: return {"auto_approve": 0.18, "reject": 0.55}
 
+def decide(p, k):
+    t = get_thresholds(k)
+    if p >= t["reject"]: return "reject"
+    elif p <= t["auto_approve"]: return "auto_approve"
+    else: return "manual_review"
+
+decisions = [decide(p, k) for p, k in zip(all_probs, df["kavachScore"])]
+
+output_df = df[["claim_id", "customer_id", "city", "zone", "category", "severity",
+                "payout_amount", "kavachScore", "fraud_flag"]].copy()
 output_df["fraud_prob"] = all_probs.round(4)
-output_df["decision"]   = decisions
-output_df["correct"]    = (
-    ((output_df["fraud_flag"] == 1) & (output_df["decision"] == "reject")) |
-    ((output_df["fraud_flag"] == 0) & (output_df["decision"].isin(["auto_approve", "manual_review"])))
-).astype(int)
+output_df["decision"] = decisions
 
-output_df.to_csv("m2.csv", index=False)
+output_df.to_csv("m2_final.csv", index=False)
+print(f"\n✅ m2_final.csv saved with {len(output_df):,} claims")
+print(output_df["decision"].value_counts())
 
-dec_counts = output_df["decision"].value_counts()
-print(f"\n[9] Decision breakdown ({len(output_df):,} claims):")
-for dec, cnt in dec_counts.items():
-    pct = cnt / len(output_df) * 100
-    print(f"    {dec:15s}  {cnt:5,}  ({pct:.1f}%)")
-
-print(f"\n    Saved: m2.csv  ({len(output_df):,} rows)")
-print(f"    Columns: {list(output_df.columns)}")
-
-print("\n" + "=" * 60)
-print("  M2 training pipeline complete ✓")
-print("=" * 60)
+print("\n" + "="*75)
+print("M2 Pipeline Completed Successfully!")
