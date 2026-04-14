@@ -1,0 +1,73 @@
+{
+  "feature_cols": [
+    "risk_enc",
+    "age",
+    "months_active",
+    "past_claims",
+    "past_correct_claims",
+    "kavachScore",
+    "city_tier",
+    "sde_enc",
+    "avg_daily_deliveries",
+    "avg_daily_distance",
+    "avg_weekly_income",
+    "claim_rate",
+    "correct_claim_ratio",
+    "income_per_delivery",
+    "risk_income_interaction",
+    "kavach_per_month",
+    "age_risk",
+    "delivery_intensity",
+    "log_past_claims",
+    "log_income"
+  ],
+  "risk_map": {
+    "high": 2,
+    "medium": 1,
+    "low": 0
+  },
+  "sde_map": {
+    "high": 2,
+    "medium": 1,
+    "low": 0
+  },
+  "impute_medians": {
+    "risk_enc": 1.0,
+    "age": 37.0,
+    "months_active": 24.0,
+    "past_claims": 2.0,
+    "past_correct_claims": 1.0,
+    "kavachScore": 786.0,
+    "city_tier": 1.0,
+    "sde_enc": 1.0,
+    "avg_daily_deliveries": 18.0,
+    "avg_daily_distance": 37.7,
+    "avg_weekly_income": 2902.0,
+    "claim_rate": 0.09523809523809523,
+    "correct_claim_ratio": 0.25,
+    "income_per_delivery": 24.212903225806453,
+    "risk_income_interaction": 2958.0,
+    "kavach_per_month": 30.434782608695652,
+    "age_risk": 36.0,
+    "delivery_intensity": 585.0,
+    "log_past_claims": 1.0986122886681098,
+    "log_income": 7.97349996402463
+  },
+  "clip_lower": 39,
+  "clip_upper": 112,
+  "model_type": "GradientBoostingRegressor",
+  "best_params": {
+    "n_estimators": 319,
+    "max_depth": 8,
+    "learning_rate": 0.044947059931638174,
+    "subsample": 0.8265632318610968,
+    "min_samples_split": 9,
+    "min_samples_leaf": 1
+  },
+  "training_date": "2026-04-10 14:06",
+  "performance": {
+    "test_mae": 0.48117120742040975,
+    "test_r2": 0.9971420725950396,
+    "cv_mae": 0.4755048519651103
+  }
+}

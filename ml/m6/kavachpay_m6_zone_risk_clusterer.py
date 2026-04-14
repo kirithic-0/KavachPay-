@@ -13,8 +13,6 @@ Original file is located at
 # Output: zone_clusters.csv, zone_cluster_model.pkl
 # ============================================================
 
-!pip install scikit-learn hdbscan umap-learn joblib pandas numpy -q
-
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import RobustScaler

@@ -32,7 +32,21 @@ import math
 # ---------------------------------------------------------------------------
 # Model file loading — uncomment when real .pkl files are ready
 # ---------------------------------------------------------------------------
-# import joblib
+
+import joblib
+import pandas as pd
+import numpy as np
+
+try:
+    _M1_MODEL  = joblib.load('ml_artifacts/m1_premium_model.pkl')
+    _M1A_MODEL = joblib.load('ml_artifacts/m1a_premium_model.pkl')
+    _M2_MODEL  = joblib.load('ml_artifacts/m2_premium_model.pkl')
+    _M3_ARTIFACT = joblib.load('ml_artifacts/income_loss_qr.pkl')
+    _M5_MODEL  = joblib.load('ml_artifacts/churn_model.pkl')
+    _M6_MAP    = pd.read_csv('ml_artifacts/zone_clusters.csv', index_col='zone')
+except Exception as e:
+    print(f"Error loading models: {e}")
+
 # _M1_MODEL  = joblib.load('ml_artifacts/m1_premium_rf.pkl')
 # _M1A_MODEL = joblib.load('ml_artifacts/m1a_coldstart_glm.pkl')
 # _M2_MODEL  = joblib.load('ml_artifacts/m2_fraud_xgb.pkl')
@@ -101,41 +115,43 @@ def m1_predict_premium(
     past_correct_claims, kavachScore, city_tier_enc, sde_enc, avg_daily_deliveries.
     Output capped ₹39 – ₹150.
     """
-    # ── ML MODEL START (M1): Replace with _M1_MODEL.predict([[features]])[0] ──
-    base = 39.0
-
-    # Risk (largest weight — mirrors RF feature importance)
-    base += RISK_ENC.get(risk, 0) * 14.0
-
-    # Age uplift: younger workers have slightly higher risk profile
-    base += max(0.0, (35 - min(age, 60)) * 0.30)
-
-    # Claims history: fraud ratio adds to premium
-    fraud_ratio = 0.0
-    if past_claims > 0:
-        fraud_ratio = 1.0 - (past_correct_claims / past_claims)
-    base += fraud_ratio * 18.0
-
-    # KavachScore discount (high score = trusted = lower premium)
-    score_discount = max(0.0, (kavach_score - 600) / 400.0 * 15.0)
-    base -= score_discount
-
-    # Delivery intensity (more deliveries = more road exposure)
-    delivery_factor = 1.0 + min(avg_daily_deliveries / 50.0, 1.0) * 0.25
-    base *= delivery_factor
-
-    # Tenure loyalty discount
-    tenure_discount = min(months_active / 12.0, 1.0) * 5.0
-    base -= tenure_discount
-
-    # City tier uplift
-    tier = CITY_TIER.get(city, '2')
-    base += {'1': 10.0, '2': 4.0, '3': 0.0}.get(tier, 4.0)
-
-    # Social disruption exposure
-    base += {'none': 0.0, 'low': 2.0, 'medium': 5.0, 'high': 10.0}.get(sde, 0.0)
-
-    premium = max(39, min(150, round(base)))
+        # ── ML MODEL START (M1): Replace with _M1_MODEL.predict([[features]])[0] ──
+    try:
+        import numpy as np
+        risk_map = {'low': 0, 'medium': 1, 'high': 2}
+        sde_map = {'low': 0, 'medium': 1, 'high': 2, 'none': 0}
+        
+        risk_enc = risk_map.get(risk, 1)
+        sde_enc = sde_map.get(sde, 0)
+        tier_str = CITY_TIER.get(city, '2')
+        city_tier_enc = int(tier_str)
+        
+        # Default Medians for missing values based on M1 metadata
+        avg_daily_distance = 37.7
+        avg_weekly_income = 2902.0
+        
+        claim_rate = past_claims / (months_active + 1)
+        correct_claim_ratio = past_correct_claims / (past_claims + 1)
+        income_per_delivery = avg_weekly_income / (avg_daily_deliveries * 7 + 1)
+        risk_income_interaction = risk_enc * avg_weekly_income
+        kavach_per_month = kavach_score / (months_active + 1)
+        age_risk = age * risk_enc
+        delivery_intensity = avg_daily_deliveries * avg_daily_distance
+        log_past_claims = np.log1p(min(past_claims, 20))
+        log_income = np.log1p(avg_weekly_income)
+        
+        features = [
+            risk_enc, age, months_active, min(past_claims, 20), past_correct_claims,
+            kavach_score, city_tier_enc, sde_enc, avg_daily_deliveries,
+            avg_daily_distance, avg_weekly_income, claim_rate, correct_claim_ratio,
+            income_per_delivery, risk_income_interaction, kavach_per_month,
+            age_risk, delivery_intensity, log_past_claims, log_income
+        ]
+        pred = _M1_MODEL.predict([features])[0]
+        premium = max(39, min(150, round(pred)))
+    except Exception:
+        premium = 39 # fallback
+    return premium
     # ── ML MODEL END (M1) ──
     return premium
 
@@ -157,21 +173,22 @@ def m1a_predict_premium_coldstart(
     Uses Tweedie distribution (matches insurance claim patterns).
     Output capped ₹39 – ₹150.
     """
-    # ── ML MODEL START (M1a): Replace with _M1A_MODEL.predict([[features]])[0] ──
-    base = {'low': 39.0, 'medium': 52.0, 'high': 68.0}.get(risk, 52.0)
-
-    # Age factor (Tweedie link=log: younger → slight multiplicative uplift)
-    age_factor = 1.0 + max(0.0, (30 - min(age, 60)) * 0.008)
-    base *= age_factor
-
-    # City tier lift
-    tier = CITY_TIER.get(city, '2')
-    base += {'1': 6.0, '2': 2.0, '3': 0.0}.get(tier, 2.0)
-
-    # Platform uplift (ride-hailing has higher traffic exposure)
-    base += {'Ola': 4.0, 'Rapido': 4.0, 'Uber': 4.0}.get(platform, 0.0)
-
-    premium = max(39, min(150, round(base)))
+        # ── ML MODEL START (M1a): Replace with _M1A_MODEL.predict([[features]])[0] ──
+    try:
+        import numpy as np
+        risk_enc = {'low': 0, 'medium': 1, 'high': 2}.get(risk, 1)
+        city_tier_enc = int(CITY_TIER.get(city, '2'))
+        pf_enc_map = {'Swiggy': 0, 'Zomato': 1, 'Blinkit': 2, 'Zepto': 3, 'Dunzo': 4, 'BigBasket': 5, 'Ola': 6, 'Rapido': 7, 'Uber': 8}
+        platform_enc = pf_enc_map.get(platform, 0)
+        
+        features = [age, risk_enc, city_tier_enc, platform_enc]
+        
+        # m1a training expected 4 features
+        pred = _M1A_MODEL.predict([features])[0]
+        premium = max(39, min(150, round(pred)))
+    except Exception:
+        premium = 39
+    return premium
     # ── ML MODEL END (M1a) ──
     return premium
 
@@ -195,49 +212,95 @@ def m2_detect_fraud(
     measured_value: float = 0.0,
     zone_inactivity_pct: float = 0.70,  # fraction of zone workers inactive
 ) -> dict:
-    # ── ML MODEL START (M2): Replace with XGBoost Classifier ──
-    fraud_prob = 0.10
-    flags      = []
+        # ── ML MODEL START (M2): Replace with XGBoost Classifier ──
+    try:
+        import numpy as np
+        import pandas as pd
+        kavachScore_norm = kavach_score / 900.0
+        honesty_ratio = past_correct_claims / max(past_claims, 1)
+        months_active_cl = max(months_active, 0.1)
+        claim_freq = past_claims / months_active_cl
+        late_flag = 0
+        has_decl = int(has_declaration)
+        is_sev = int(is_severe)
+        new_severe = int((months_active < 3) and is_severe)
+        payout_ratio = min(payout_amount / max(coverage, 1), 3.0)
+        
+        # dist_anomaly: distance wasn't passed, assume 0
+        dist_anomaly = 0 
+        claim_to_tenure_ratio = past_claims / (months_active + 1)
+        low_kavach_high_severity = int((kavach_score < 500) and is_severe)
+        payout_near_max = int(payout_ratio > 0.85)
+        risk_enc = 1.0 # assume medium
+        layers_passed = 1.0
+        binary_flag = 0.0
+        severity_loss_pct = 0.0
+        is_excluded = 0.0
+        
+        f_dict = {
+            "kavachScore_norm": kavachScore_norm, "honesty_ratio": honesty_ratio, 
+            "claim_freq": claim_freq, "late_flag": late_flag,
+            "has_declaration": has_decl, "is_severe": is_sev, "new_severe": new_severe, 
+            "payout_ratio": payout_ratio, "dist_anomaly": dist_anomaly, 
+            "claim_to_tenure_ratio": claim_to_tenure_ratio, 
+            "low_kavach_high_severity": low_kavach_high_severity,
+            "payout_near_max": payout_near_max, "risk_enc": risk_enc, 
+            "layers_passed": layers_passed, "binary_flag": binary_flag,
+            "measured_value": measured_value, "severity_loss_pct": severity_loss_pct, 
+            "is_excluded": is_excluded
+        }
+        
+        # Dummy cols from M2 json metadata
+        all_cols = _M2_MODEL.feature_names_in_ if hasattr(_M2_MODEL, 'feature_names_in_') else []
+        for col in all_cols:
+            if col not in f_dict:
+                if col.startswith("disruption_code_") and col.endswith(disruption_code):
+                    f_dict[col] = 1.0
+                elif col.startswith("severity_") and (("Severe" in col and is_severe) or ("Moderate" in col and not is_severe)):
+                    f_dict[col] = 1.0
+                else:
+                    f_dict[col] = 0.0
+        
+        # Order the features
+        if len(all_cols) > 0:
+            features = [f_dict[c] for c in all_cols]
+        else:
+            features = list(f_dict.values())
+        
+        fraud_prob = _M2_MODEL.predict_proba([features])[0][1]
+        
+        flags = []
+        if kavach_score < 550: flags.append('low_kavach_score_risk')
+        if past_claims > 2 and honesty_ratio < 0.5: flags.append('high_past_fraud_ratio')
+        if orders_during_disruption > 0: flags.append('activity_during_disruption_detected')
+        
+        if is_severe and zone_inactivity_pct >= 0.85:
+            fraud_prob = max(0.01, fraud_prob - 0.15)
+            
+        def get_thresholds(k):
+            if k >= 700: return {"auto_approve": 0.22, "reject": 0.72}
+            elif k >= 450: return {"auto_approve": 0.30, "reject": 0.65}
+            else: return {"auto_approve": 0.18, "reject": 0.55}
+            
+        t = get_thresholds(kavach_score)
+        threshold = t["reject"]
+        
+        if fraud_prob >= t["reject"]: decision = "reject"
+        elif fraud_prob <= t["auto_approve"] and not flags: decision = "auto_approve"
+        elif fraud_prob <= t["auto_approve"] and flags: decision = "approve"
+        else: decision = "manual_review"
 
-    # 1. KavachScore heuristic (lower score = higher risk)
-    if kavach_score < 700:
-        fraud_prob += 0.15
-        if kavach_score < 550:
-            fraud_prob += 0.20
-            flags.append('low_kavach_score_risk')
-
-    # 2. Claim history heuristic
-    if past_claims > 2:
-        correct_ratio = past_correct_claims / past_claims
-        if correct_ratio < 0.5:
-            fraud_prob += 0.25
-            flags.append('high_past_fraud_ratio')
-
-    # 3. Activity heuristic
-    if orders_during_disruption > 0:
-        fraud_prob += 0.40
-        flags.append('activity_during_disruption_detected')
-
-    # 4. Severe/Zone Correlation discount
-    if is_severe and zone_inactivity_pct >= 0.85:
-        fraud_prob -= 0.15
-
-    # Final Decision
-    threshold = 0.45
-    # High score (e.g. 850+) often gets "auto_approve" if no flags
-    if kavach_score >= 850 and not flags and fraud_prob < threshold:
-        decision = 'auto_approve'
-    elif fraud_prob >= threshold:
-        decision = 'reject'
-    elif fraud_prob >= (threshold - 0.15):
-        decision = 'manual_review'
-    else:
-        decision = 'approve'
+    except Exception as e:
+        print("Error M2", e)
+        decision = "manual_review"
+        fraud_prob = 0.5
+        threshold = 0.45
+        flags = []
 
     return {
         'decision':     decision,
-        'fraud_prob':   round(max(0.01, min(0.99, fraud_prob)), 3),
-        'threshold':    threshold,
+        'fraud_prob':   round(float(max(0.01, min(0.99, fraud_prob))), 3),
+        'threshold':    float(threshold),
         'flags':        flags,
         'auto_approve': decision == 'auto_approve',
     }
@@ -276,30 +339,76 @@ def m3_estimate_income_loss(
         p50 = models[0.50].predict(X_scaled)[0]
         p90 = models[0.90].predict(X_scaled)[0]
     """
-    # ── ML MODEL START (M3): Replace with _M3_ARTIFACT predict calls ──
-    is_weekend       = 1 if day_of_week in (5, 6) else 0
-    disruption_hours = DISRUPTION_HOURS.get(disruption_code, 4.0)
-    code_mult        = DISRUPTION_CODE_MULT.get(disruption_code, 0.5)
-    risk_factor      = {'low': 0.80, 'medium': 1.00, 'high': 1.25}.get(zone_risk, 1.0)
-    weekend_bonus    = 1.15 if is_weekend else 1.0
+        # ── ML MODEL START (M3): Replace with _M3_ARTIFACT predict calls ──
+    try:
+        import numpy as np
+        import pandas as pd
+        is_weekend       = 1 if day_of_week in (5, 6) else 0
+        disruption_hours = DISRUPTION_HOURS.get(disruption_code, 4.0)
+        risk_enc      = {'low': 0, 'medium': 1, 'high': 2}.get(zone_risk, 1)
+        plat_enc      = PLATFORM_ENC.get(platform, 0)
+        
+        past_cor = 0 
+        past_cl = 0
+        kavach = 750
+        daily_inc = avg_income / 7.0
+        hourly_inc = daily_inc / 8.0
+        coverage = 2000
+        premium = 60
+        cov_inc_r = coverage / (avg_income + 1)
+        prem_inc_r = premium / (avg_income + 1)
+        exp_score = np.log1p(6) * kavach / 900
+        del_dens = avg_daily_deliveries / 21.0
+        loss_pdel = 0
+        hon_score = kavach / 900
+        sev_enc = 1
+        dis_sev = disruption_hours * (1 + risk_enc*0.5) * (1 + sev_enc*0.3)
+        rule_loss = (daily_inc * disruption_hours / 8) * (sev_enc * 0.35)
 
-    # Measured-value amplification (heavier rain / worse AQI / bigger quake = more loss)
-    measured_scale = 1.0
-    if disruption_code in ('HRA', 'MRA', 'LRA') and measured_value > 0:
-        measured_scale = 1.0 + min(measured_value / 150.0, 0.60)
-    elif disruption_code == 'SAQ' and measured_value > 200:
-        measured_scale = 1.0 + min((measured_value - 200) / 300.0, 0.45)
-    elif disruption_code == 'EQK' and measured_value >= 4.0:
-        measured_scale = 1.0 + min((measured_value - 4.0) / 4.0, 1.0)
+        row = {
+            "avg_daily_deliveries": avg_daily_deliveries, "platform_enc": plat_enc,
+            "risk_enc": risk_enc, "months_active": 6, "workdays_count": 5,
+            "past_claims": past_cl, "past_correct_claims": past_cor, "claim_accuracy": 1.0,
+            "kavachScore": kavach, "avg_weekly_income": avg_income, "avg_daily_distance": 20,
+            "daily_income_est": daily_inc, "hourly_income_est": hourly_inc,
+            "coverage": coverage, "coverage_income_ratio": cov_inc_r,
+            "premium": premium, "premium_income_ratio": prem_inc_r,
+            "risk_multiplier": 1.0, "sde_enc": 1, "total_paid": 0,
+            "experience_score": exp_score, "delivery_density": del_dens,
+            "loss_per_delivery": loss_pdel, "honesty_score": hon_score,
+            "disruption_hours": disruption_hours, "severity_enc": sev_enc,
+            "disruption_severity_score": dis_sev, "day_of_week": day_of_week,
+            "is_weekend": is_weekend, "month": 4, "quarter": 2, "is_monsoon": 0,
+            "day_of_week_sin": np.sin(2*np.pi*day_of_week/7), "day_of_week_cos": np.cos(2*np.pi*day_of_week/7),
+            "month_sin": np.sin(2*np.pi*4/12), "month_cos": np.cos(2*np.pi*4/12),
+            "rain_mm": measured_value if disruption_code in ("HRA","MRA","LRA") else 0,
+            "aqi_val": measured_value if "AQ" in disruption_code else 0,
+            "wind_speed": measured_value if "WND" in disruption_code else 0,
+            "vis_m": 1000, "temp_c": 28, "mag": measured_value if "EQK" in disruption_code else 0,
+            "measured_value": measured_value, "delivery_x_hours": avg_daily_deliveries * disruption_hours,
+            "severity_x_delivery": sev_enc * avg_daily_deliveries, "severity_x_hours": sev_enc * disruption_hours,
+            "income_x_disruption": daily_inc * disruption_hours, "income_x_severity": daily_inc * sev_enc,
+            "coverage_x_severity": coverage * sev_enc, "risk_x_duration": risk_enc * disruption_hours,
+            "rule_based_loss": rule_loss, "dc_target_enc": 2000,
+        }
+        
+        feats = _M3_ARTIFACT["feature_cols"]
+        for c in _M3_ARTIFACT.get("disruption_codes", []): row[f"dc_{c}"] = 1 if c == disruption_code else 0
 
-    daily_income  = avg_income / 7.0
-    loss_fraction = min(disruption_hours / 12.0, 1.0)
-
-    p50_base = daily_income * loss_fraction * code_mult * risk_factor * weekend_bonus * measured_scale
-
-    p10 = max(0, round(p50_base * 0.55))
-    p50 = max(0, round(p50_base))
-    p90 = max(0, round(p50_base * 1.55))
+        X_row = pd.DataFrame([row]).reindex(columns=feats, fill_value=0).astype(float)
+        X_row_scaled = pd.DataFrame(_M3_ARTIFACT['scaler'].transform(X_row), columns=feats)
+        
+        p10 = max(0.0, float(np.expm1(_M3_ARTIFACT['models'][0.10].predict(X_row_scaled)[0])))
+        p50 = max(0.0, float(np.expm1(_M3_ARTIFACT['models'][0.50].predict(X_row_scaled)[0])))
+        p90 = max(0.0, float(np.expm1(_M3_ARTIFACT['models'][0.90].predict(X_row_scaled)[0])))
+        
+        p10 = max(0, round(p10))
+        p50 = max(p10, round(p50))
+        p90 = max(p50, round(p90))
+    except Exception as e:
+        print("Error M3", e)
+        p50 = round(avg_income/7)
+        p10, p90 = round(p50*0.5), round(p50*1.5)
     # ── ML MODEL END (M3) ──
 
     return {'p10': p10, 'p50': p50, 'p90': p90}
@@ -328,23 +437,25 @@ def m5_predict_churn(
         final_premium = base_premium × (1 + margin)
     """
     # ── ML MODEL START (M5): Replace with _M5_MODEL.predict_proba([[features]])[0][1] ──
-    tier_enc = {'1': 1.0, '2': 0.5, '3': 0.0}.get(CITY_TIER.get(city, '2'), 0.5)
-
-    # Logistic regression linear combination (mock weights match training)
-    z = (
-        -1.20                              # intercept
-        + (premium - 60.0) * 0.020        # higher premium → more likely to churn
-        + (750 - kavach_score) * 0.002    # lower score → more likely to churn
-        - months_active * 0.080           # longer tenure → less likely to churn
-        + past_claims * 0.050             # more claims → possibly frustrated
-        + tier_enc * 0.150               # tier-1 cities more competitive
-    )
-
-    churn_prob = 1.0 / (1.0 + math.exp(-z))
-    churn_prob = round(max(0.02, min(0.95, churn_prob)), 3)
-
-    # Dynamic profit margin: loyal workers → higher margin is safe
-    margin = round(0.20 * (1.0 - churn_prob), 4)
+    try:
+        tier_enc = float({'1': 1.0, '2': 0.5, '3': 0.0}.get(CITY_TIER.get(city, '2'), 0.5))
+        m5_model = _M5_MODEL['model'] if isinstance(_M5_MODEL, dict) else _M5_MODEL
+        f_cols = _M5_MODEL.get('feature_cols', ['premium', 'kavachScore', 'months_active', 'past_claims', 'city_tier_enc']) if isinstance(_M5_MODEL, dict) else getattr(m5_model, 'feature_names_in_', ['premium', 'kavachScore', 'months_active', 'past_claims', 'city_tier'])
+        f_dict = {'premium': premium, 'kavachScore': kavach_score, 'months_active': months_active, 'past_claims': past_claims, 'city_tier': tier_enc, 'city_tier_enc': tier_enc}
+        features = [[f_dict.get(c, 0) for c in f_cols]]
+        
+        if isinstance(_M5_MODEL, dict) and 'scaler' in _M5_MODEL:
+            import pandas as pd
+            df_feat = pd.DataFrame(features, columns=f_cols)
+            features = _M5_MODEL['scaler'].transform(df_feat)
+            
+        churn_prob = m5_model.predict_proba(features)[0][1]
+        churn_prob = round(max(0.02, min(0.95, float(churn_prob))), 3)
+        margin = round(0.20 * (1.0 - churn_prob), 4)
+    except Exception as e:
+        print("Error M5", e)
+        churn_prob = 0.5
+        margin = 0.10
     # ── ML MODEL END (M5) ──
 
     return {'churn_probability': churn_prob, 'margin': margin}
@@ -370,18 +481,30 @@ def m6_get_zone_cluster(zone: str, city: str) -> dict:
         X_zone = scaler.transform([zone_features])
         cluster_id = _M6_MODEL.predict(X_zone)[0]
     """
-    # ── ML MODEL START (M6): Replace with CSV lookup / _M6_MODEL.predict() ──
-    city_risk   = CITY_RISK.get(city, 'low')
-    base_offset = {'low': 0, 'medium': 5, 'high': 10}.get(city_risk, 0)
-    zone_hash   = sum(ord(c) for c in zone) % 5   # deterministic 0-4
-    cluster_id  = base_offset + zone_hash
-
-    if cluster_id < 5:
+        # ── ML MODEL START (M6): Replace with CSV lookup / _M6_MODEL.predict() ──
+    try:
+        zone_clean = zone.split(',')[0].strip()
+        if zone_clean in _M6_MAP.index:
+            cluster_id = int(_M6_MAP.loc[zone_clean, 'cluster_id'])
+        else:
+            # fallback
+            city_risk   = CITY_RISK.get(city, 'low')
+            base_offset = {'low': 0, 'medium': 5, 'high': 10}.get(city_risk, 0)
+            zone_hash   = sum(ord(c) for c in zone_clean) % 5
+            cluster_id  = base_offset + zone_hash
+            
+        if cluster_id < 5:
+            label = 'Low Risk Cluster'
+        elif cluster_id < 10:
+            label = 'Medium Risk Cluster'
+        else:
+            label = 'High Risk Cluster'
+        city_risk = CITY_RISK.get(city, 'low')
+    except Exception as e:
+        print("Error M6", e)
+        cluster_id = 0
         label = 'Low Risk Cluster'
-    elif cluster_id < 10:
-        label = 'Medium Risk Cluster'
-    else:
-        label = 'High Risk Cluster'
+        city_risk = 'low'
     # ── ML MODEL END (M6) ──
 
     return {'cluster_id': cluster_id, 'cluster_label': label, 'city_risk': city_risk}
