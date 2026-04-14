@@ -1,7 +1,7 @@
 {
   "model_type": "DisruptionAlertEngine",
   "version": "M4-v1",
-  "last_run": "2026-04-14 17:15:51 IST",
+  "last_run": "2026-04-14 18:24:08 IST",
   "cities_covered": [
     "Ahmedabad",
     "Bengaluru",
@@ -14,7 +14,7 @@
     "Mumbai",
     "Pune"
   ],
-  "localities_count": 2,
+  "localities_count": 100,
   "thresholds": {
     "EQK_THRESHOLD": 4.0,
     "HRA_MM": 100,
