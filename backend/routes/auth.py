@@ -97,8 +97,8 @@ def register():
             "avg_income": platform_result.get("avg_weekly_income", 0),
             "avg_deliveries": platform_result.get("avg_daily_deliveries", 0),
             "avg_daily_distance": platform_result.get("avg_daily_distance", 0),
-            "policy_type": "standard",
-            "employer_name": platform,
+            "policy_type": "individual",
+            "employer_name": "",
             "employer_email": f"contact@{platform.lower()}.in",
             "referral_code": f"{name[:3].upper()}{random.randint(1000, 9999)}",
             "used_referral": used_referral,
@@ -134,29 +134,45 @@ def login():
     worker_data = doc.to_dict()
     if worker_data.get("is_deleted", False):
         return jsonify({"success": False, "error": "Account has been deleted."}), 403
-        
+
+    # Sanitize Firestore timestamp objects so they are JSON-serializable
+    for field in ['created_at', 'updated_at', 'deleted_at', 'last_renewed']:
+        val = worker_data.get(field)
+        if val and hasattr(val, 'isoformat'):
+            worker_data[field] = val.isoformat()
+        elif val and not isinstance(val, (str, int, float, bool, type(None))):
+            worker_data[field] = str(val)
+
     return jsonify({"success": True, "worker": worker_data}), 200
 
 @auth_bp.route('/check-unique', methods=['POST'])
 def check_unique():
     # POST /auth/check-unique: Checks if email, phone, aadhaar, or employee_id exist. Returns { available: true/false }.
     data = request.get_json()
-    email = data.get("email")
-    phone = data.get("phone")
-    employee_id = data.get("employee_id")
-    # Because aadhaar is only stored as last 4 securely, checking full aadhaar is not feasible. 
-    # But usually frontend validates fields on change.
-    
+    # Frontend sends { field: 'email', value: '...' } OR direct { email, phone, employee_id }
+    # Support both formats
+    field = data.get("field")
+    value = data.get("value")
+    if field and value:
+        # Single field check
+        email = value if field == 'email' else None
+        phone = value if field == 'phone' else None
+        employee_id = value if field == 'employee_id' else None
+    else:
+        email = data.get("email")
+        phone = data.get("phone")
+        employee_id = data.get("employee_id")
+
     db = firestore.client()
     workers_ref = db.collection("workers")
-    
+
     if email and len(workers_ref.where("email", "==", email).limit(1).get()) > 0:
         return jsonify({"available": False, "reason": "Email already exists"}), 200
     if phone and len(workers_ref.where("phone", "==", phone).limit(1).get()) > 0:
         return jsonify({"available": False, "reason": "Phone already exists"}), 200
     if employee_id and len(workers_ref.where("employee_id", "==", employee_id).limit(1).get()) > 0:
         return jsonify({"available": False, "reason": "Employee ID already exists"}), 200
-        
+
     return jsonify({"available": True}), 200
 
 @auth_bp.route('/send-otp', methods=['POST'])

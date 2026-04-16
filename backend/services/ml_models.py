@@ -115,21 +115,21 @@ def m1_predict_premium(
     past_correct_claims, kavachScore, city_tier_enc, sde_enc, avg_daily_deliveries.
     Output capped ₹39 – ₹150.
     """
-        # ── ML MODEL START (M1): Replace with _M1_MODEL.predict([[features]])[0] ──
+    # ── ML MODEL START (M1): Replace with _M1_MODEL.predict([[features]])[0] ──
     try:
         import numpy as np
         risk_map = {'low': 0, 'medium': 1, 'high': 2}
         sde_map = {'low': 0, 'medium': 1, 'high': 2, 'none': 0}
-        
+
         risk_enc = risk_map.get(risk, 1)
         sde_enc = sde_map.get(sde, 0)
         tier_str = CITY_TIER.get(city, '2')
         city_tier_enc = int(tier_str)
-        
-        # Default Medians for missing values based on M1 metadata
+
+        # Default medians for missing values based on M1 metadata
         avg_daily_distance = 37.7
         avg_weekly_income = 2902.0
-        
+
         claim_rate = past_claims / (months_active + 1)
         correct_claim_ratio = past_correct_claims / (past_claims + 1)
         income_per_delivery = avg_weekly_income / (avg_daily_deliveries * 7 + 1)
@@ -139,7 +139,7 @@ def m1_predict_premium(
         delivery_intensity = avg_daily_deliveries * avg_daily_distance
         log_past_claims = np.log1p(min(past_claims, 20))
         log_income = np.log1p(avg_weekly_income)
-        
+
         features = [
             risk_enc, age, months_active, min(past_claims, 20), past_correct_claims,
             kavach_score, city_tier_enc, sde_enc, avg_daily_deliveries,
@@ -149,11 +149,12 @@ def m1_predict_premium(
         ]
         pred = _M1_MODEL.predict([features])[0]
         premium = max(39, min(150, round(pred)))
+        return premium
     except Exception:
-        premium = 39 # fallback
-    return premium
+        # Fallback: rule-based premium from city risk
+        risk_premiums = {'low': 49, 'medium': 59, 'high': 74}
+        return risk_premiums.get(risk, 59)
     # ── ML MODEL END (M1) ──
-    return premium
 
 
 # ===========================================================================
@@ -173,24 +174,25 @@ def m1a_predict_premium_coldstart(
     Uses Tweedie distribution (matches insurance claim patterns).
     Output capped ₹39 – ₹150.
     """
-        # ── ML MODEL START (M1a): Replace with _M1A_MODEL.predict([[features]])[0] ──
+    # ── ML MODEL START (M1a): Replace with _M1A_MODEL.predict([[features]])[0] ──
     try:
         import numpy as np
         risk_enc = {'low': 0, 'medium': 1, 'high': 2}.get(risk, 1)
         city_tier_enc = int(CITY_TIER.get(city, '2'))
         pf_enc_map = {'Swiggy': 0, 'Zomato': 1, 'Blinkit': 2, 'Zepto': 3, 'Dunzo': 4, 'BigBasket': 5, 'Ola': 6, 'Rapido': 7, 'Uber': 8}
         platform_enc = pf_enc_map.get(platform, 0)
-        
+
         features = [age, risk_enc, city_tier_enc, platform_enc]
-        
-        # m1a training expected 4 features
+
+        # M1a expects 4 features
         pred = _M1A_MODEL.predict([features])[0]
         premium = max(39, min(150, round(pred)))
+        return premium
     except Exception:
-        premium = 39
-    return premium
+        # Fallback: base rate from city risk level
+        risk_premiums = {'low': 49, 'medium': 59, 'high': 74}
+        return risk_premiums.get(risk, 49)
     # ── ML MODEL END (M1a) ──
-    return premium
 
 
 # ===========================================================================

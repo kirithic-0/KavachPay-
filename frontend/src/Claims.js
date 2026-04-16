@@ -8,9 +8,14 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const api = {
     // TODO: BACKEND — get claims for worker
     getClaims: async (workerId) => {
-        return await fetch(`${API_BASE}/api/claims/${workerId}`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        }).then(r => r.json());
+        try {
+            return await fetch(`${API_BASE}/api/claims/${workerId}`, {
+              headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            }).then(r => r.json());
+        } catch (e) {
+            console.error('Failed to load claims:', e);
+            return { claims: [] };
+        }
     },
 };
 

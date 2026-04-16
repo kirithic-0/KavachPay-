@@ -13,26 +13,26 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const api = {
     // TODO: BACKEND — get worker profile
     getWorker: async (workerId) => {
-        return await fetch(`${API_BASE}/api/worker/${workerId}`, {
+        return await fetch(`${API_BASE}/api/workers/${workerId}`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         }).then(r => r.json());
     },
     updateProfile: async (workerId, data) => {
-        return await fetch(`${API_BASE}/api/worker/${workerId}`, {
+        return await fetch(`${API_BASE}/api/workers/${workerId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
           body: JSON.stringify(data)
         }).then(r => r.json());
     },
     updateZone: async (workerId, newZone) => {
-        return await fetch(`${API_BASE}/api/worker/${workerId}/zone`, {
+        return await fetch(`${API_BASE}/api/workers/${workerId}/zone`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
           body: JSON.stringify({ zone: newZone })
         }).then(r => r.json());
     },
     deleteAccount: async (workerId) => {
-        return await fetch(`${API_BASE}/api/worker/${workerId}`, {
+        return await fetch(`${API_BASE}/api/workers/${workerId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         }).then(r => r.json());
@@ -40,19 +40,19 @@ const api = {
     uploadPhoto: async (workerId, file) => {
         const formData = new FormData();
         formData.append('photo', file);
-        return await fetch(`${API_BASE}/api/worker/${workerId}/photo`, {
+        return await fetch(`${API_BASE}/api/workers/${workerId}/photo`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
           body: formData
         }).then(r => r.json());
     },
     getWorkerStats: async (workerId) => {
-        return await fetch(`${API_BASE}/api/worker/${workerId}/stats`, {
+        return await fetch(`${API_BASE}/api/workers/${workerId}/stats`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         }).then(r => r.json());
     },
     getWorkerWeeklyIncome: async (workerId) => {
-        return await fetch(`${API_BASE}/api/worker/${workerId}/weekly-income`, {
+        return await fetch(`${API_BASE}/api/workers/${workerId}/weekly-income`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         }).then(r => r.json());
     },
@@ -336,10 +336,11 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
 
     useEffect(() => {
         let start = 0;
-        const step = (worker?.kavach_score || 750) / (1200 / 16);
+        const targetScore = worker?.kavach_score || 750;
+        const step = targetScore / (1200 / 16);
         const timer = setInterval(() => {
             start += step;
-            if (start >= worker?.kavach_score || 750) { setAnimatedScore(worker?.kavach_score || 750); clearInterval(timer); }
+            if (start >= targetScore) { setAnimatedScore(targetScore); clearInterval(timer); }
             else setAnimatedScore(Math.round(start));
         }, 16);
         return () => clearInterval(timer);
@@ -370,7 +371,7 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
 
                 const income = await api.getWorkerWeeklyIncome(worker.uid);
                 if (income && income.weekly_income) {
-                  setEarningsData(income.weekly_income.map(w => ({ week: w.week, earned: w.income, coverage: worker.coverage || 1200 })));
+                  setEarningsData(income.weekly_income.map(w => ({ week: w.week, earned: w.income, coverage: coverage })));
                   const lastWeek = income.weekly_income[income.weekly_income.length - 1];
                   setEarnedSoFar(lastWeek?.income || 0);
                 }
@@ -389,7 +390,7 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
                   })));
                 }
 
-                const notifs = await fetch(`${API_BASE}/api/worker/${worker.uid}/notifications`, {
+                const notifs = await fetch(`${API_BASE}/api/workers/${worker.uid}/notifications`, {
                    headers: { 'Authorization': `Bearer ${token}` }
                 }).then(r => r.json());
                 if (notifs && notifs.notifications) setNotifications(notifs.notifications);
@@ -416,7 +417,7 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
             }
         };
         loadEverything();
-    }, [worker?.uid, worker?.coverage, setWorker]);
+    }, [worker?.uid]);
 
     useEffect(() => {
         const p = Math.round((earnedSoFar / avgIncome) * 100);
@@ -472,14 +473,14 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
         const file = e.target.files[0];
         if (!file) return;
         setPhotoUploading(true);
-        const result = await api.uploadPhoto(worker?.id, file);
-        if (result.success) setPhotoUrl(result.url);
+        const result = await api.uploadPhoto(worker?.uid, file);
+        if (result.success) setPhotoUrl(result.photo_url || result.url);
         setPhotoUploading(false);
     };
 
     const handleResign = async () => {
         if (resignInput !== 'DELETE') return;
-        await api.deleteAccount(worker?.id);
+        await api.deleteAccount(worker?.uid);
         onLogout();
     };
 
@@ -1096,7 +1097,25 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
                 style={{ position: 'fixed', bottom: 80, right: 20, backgroundColor: C.accent, color: 'white', width: 48, height: 48, borderRadius: '50%', border: 'none', cursor: 'pointer', boxShadow: '0 4px 16px rgba(91,110,245,0.35)', zIndex: 99, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
             </button>
-            {showChat && <Chatbot onClose={() => setShowChat(false)} lang={lang} />}
+            {showChat && <Chatbot
+                onClose={() => setShowChat(false)}
+                lang={lang}
+                worker={{
+                    ...worker,
+                    // Map backend field names to Chatbot expected field names
+                    score:        worker?.kavach_score,
+                    avgIncome:    worker?.avg_income,
+                    avgDeliveries: worker?.avg_deliveries,
+                    policyType:   worker?.policy_type,
+                    policyActive: worker?.policy_active,
+                    policyPaused: worker?.policy_paused,
+                    employeeId:   worker?.employee_id,
+                    eshramId:     worker?.eshram_id,
+                    referralCode: worker?.referral_code,
+                    claims:       disruptionHistory,
+                    notifications: notifications,
+                }}
+            />}
         </div>
     );
 }

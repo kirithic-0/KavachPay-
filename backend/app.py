@@ -27,11 +27,15 @@ import atexit
 
 def create_app():
     app = Flask(__name__)
-    CORS(app, resources={r"/api/*": {"origins": "https://kavach-pay5.vercel.app"}}, supports_credentials=True)
+    CORS(app, resources={r"/api/*": {"origins": [
+        "https://kavach-pay5.vercel.app",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]}}, supports_credentials=True)
 
     # Register all route blueprints
     app.register_blueprint(auth_bp,         url_prefix="/api/auth")
-    app.register_blueprint(workers_bp,      url_prefix="/api/worker")
+    app.register_blueprint(workers_bp,      url_prefix="/api/workers")
     app.register_blueprint(admin_bp,        url_prefix="/api/admin")
     app.register_blueprint(disruptions_bp,  url_prefix="/api/disruptions")
     app.register_blueprint(payments_bp,     url_prefix="/api/payments")

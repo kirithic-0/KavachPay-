@@ -10,14 +10,21 @@ const api = {
         return await fetch(`${API_BASE}/api/policy/renew`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-          body: JSON.stringify({ worker_id: workerId, amount })
+          body: JSON.stringify({ uid: workerId, amount })
         }).then(r => r.json());
     },
     pausePolicy: async (workerId) => {
         return await fetch(`${API_BASE}/api/policy/pause`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-          body: JSON.stringify({ worker_id: workerId })
+          body: JSON.stringify({ uid: workerId })
+        }).then(r => r.json());
+    },
+    resumePolicy: async (workerId) => {
+        return await fetch(`${API_BASE}/api/policy/resume`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          body: JSON.stringify({ uid: workerId })
         }).then(r => r.json());
     },
 };
@@ -549,7 +556,7 @@ export default function Policy({ worker, onBack, lang: propLang, setLang: propSe
                                 <p style={{ color: C.orange, fontWeight: 600, fontSize: 13 }}>{t.pauseActive}</p>
                                 <p style={{ color: C.orange, fontSize: 12, marginTop: 4 }}>{t.pauseActiveSub}</p>
                             </div>
-                            <button onClick={async () => { await api.pausePolicy(worker?.uid); setPaused(false); }}
+                            <button onClick={async () => { await api.resumePolicy(worker?.uid); setPaused(false); }}
                                 style={{ width: '100%', backgroundColor: C.green, color: 'white', padding: 12, borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t.resume}</button>
                         </div>
                     ) : showPauseConfirm ? (

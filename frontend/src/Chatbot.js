@@ -1,10 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { KavachLogo } from './App';
 
-// ─── Firebase imports ───
-// Uncomment when firebase.js is set up by Ashwin
-// import { db } from './firebase';
-// import { doc, getDoc, collection, getDocs, orderBy, query } from 'firebase/firestore';
+// ─── API config ───
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 // ─── Gemini API config ───
 const GEMINI_KEY = process.env.REACT_APP_GEMINI_KEY;
@@ -35,57 +33,41 @@ const C = {
 // Called once when chatbot opens with a logged-in worker uid
 // ═══════════════════════════════════════════════════════════════
 async function fetchWorkerContext(uid) {
-  // ── TODO: BACKEND — uncomment when firebase.js is ready ──
-  // try {
-  //   // 1. Worker profile
-  //   const workerSnap = await getDoc(doc(db, 'workers', uid));
-  //   if (!workerSnap.exists()) return null;
-  //   const workerData = workerSnap.data();
-  //
-  //   // 2. Claims (last 10, newest first)
-  //   const claimsSnap = await getDocs(
-  //     query(collection(db, 'workers', uid, 'claims'),
-  //           orderBy('timestamp', 'desc'))
-  //   );
-  //   const claims = claimsSnap.docs.slice(0, 10).map(d => ({
-  //     id: d.id, ...d.data()
-  //   }));
-  //
-  //   // 3. Notifications (last 5, newest first)
-  //   const notifsSnap = await getDocs(
-  //     query(collection(db, 'workers', uid, 'notifications'),
-  //           orderBy('timestamp', 'desc'))
-  //   );
-  //   const notifications = notifsSnap.docs.slice(0, 5).map(d => ({
-  //     id: d.id, ...d.data()
-  //   }));
-  //
-  //   return {
-  //     name: workerData.name,
-  //     zone: workerData.zone,
-  //     city: workerData.city,
-  //     platform: workerData.platform,
-  //     premium: workerData.premium,
-  //     coverage: workerData.coverage,
-  //     avgIncome: workerData.avg_income,
-  //     avgDeliveries: workerData.avg_deliveries,
-  //     score: workerData.kavach_score,
-  //     policyType: workerData.policy_type,
-  //     referralCode: workerData.referral_code,
-  //     employeeId: workerData.employee_id,
-  //     eshramId: workerData.eshram_id,
-  //     policyActive: workerData.policy_active,
-  //     policyPaused: workerData.policy_paused,
-  //     claims,
-  //     notifications,
-  //   };
-  // } catch (err) {
-  //   console.error('Error fetching worker context:', err);
-  //   return null;
-  // }
-
-  // ── MOCK — remove when backend is live ──
-  return null; // will use prop-based worker instead
+  // Fetch full worker context from backend (profile + claims + notifications + weather)
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    const res = await fetch(`${API_BASE}/api/workers/${uid}/chatbot-context`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (d.error) return null;
+    return {
+      name:         d.name,
+      zone:         d.zone,
+      city:         d.city,
+      platform:     d.platform,
+      premium:      d.premium,
+      coverage:     d.coverage,
+      avgIncome:    d.avg_income,
+      avgDeliveries: d.avg_deliveries,
+      score:        d.kavach_score,
+      policyType:   d.policy_type,
+      policyActive: d.policy_active,
+      policyPaused: !d.policy_active,
+      employeeId:   d.employee_id,
+      eshramId:     d.eshram_id,
+      referralCode: d.referral_code,
+      claims:       d.claims || [],
+      notifications: d.notifications || [],
+      weather:      d.weather,
+      aqi:          d.aqi,
+    };
+  } catch (err) {
+    console.error('Chatbot: failed to fetch worker context:', err);
+    return null;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════

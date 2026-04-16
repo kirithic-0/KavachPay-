@@ -61,7 +61,7 @@ def renew_policy():
 def pause_policy():
     db = firestore.client()
     data = request.get_json()
-    uid = data.get("uid")
+    uid = data.get("uid") or data.get("worker_id")
     
     if not uid:
         return jsonify({"success": False, "error": "Missing uid"}), 400
@@ -82,3 +82,31 @@ def pause_policy():
     })
     
     return jsonify({"success": True, "message": "Policy paused"}), 200
+
+@policy_bp.route('/resume', methods=['POST'])
+@require_auth
+def resume_policy():
+    db = firestore.client()
+    data = request.get_json()
+    uid = data.get("uid") or data.get("worker_id")
+
+    if not uid:
+        return jsonify({"success": False, "error": "Missing uid"}), 400
+
+    doc_ref = db.collection("workers").document(uid)
+    doc_ref.update({
+        "policy_active": True,
+        "policy_paused": False,
+        "updated_at": firestore.SERVER_TIMESTAMP
+    })
+
+    db.collection("workers").document(uid).collection("notifications").add({
+        "type": "policy",
+        "title": "Policy Resumed",
+        "msg": "Your KavachPay policy has been resumed. You are now covered for disruptions.",
+        "read": False,
+        "timestamp": firestore.SERVER_TIMESTAMP
+    })
+
+    return jsonify({"success": True, "message": "Policy resumed"}), 200
+
