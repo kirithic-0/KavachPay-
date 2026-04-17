@@ -331,8 +331,8 @@ KavachPay's intelligence layer runs on **7 interconnected ML models** spanning d
 | M2 | Fraud Detection & Claim Verifier | Gradient Boosted Classifier | Fraud detection and automated claim routing | 3-way decision + fraud probability |
 | M3 | Income Loss & Payout Calculator | LightGBM Quantile Regression | Fair payout with full uncertainty bands | P10 · P50 · P90 payout (₹) |
 | M4 | Real-Time Disruption Detector | Multi-API Fusion + NLP | Live environmental alerts across 100 zones | Zone-level disruption flags |
-| M5 | Churn & Retention Predictor | Logistic Regression (L2) | Predict renewal dropout; drives dynamic pricing | Churn probability [0, 1] |
-| M6 | Zone Risk Intelligence Engine | K-Means (K=7) | Group 60+ zones into risk clusters; feeds M1 | Zone → cluster_id mapping |
+| M5 | Churn & Retention Predictor | XGBoost | Predict renewal dropout; drives dynamic pricing | Churn probability [0, 1] |
+| M6 | Zone Risk Intelligence Engine | Ensemble of K-Means,DBSCAN,GMM | Group 60+ zones into risk clusters; feeds M1 | Zone → cluster_id mapping |
 
 ---
 
@@ -564,6 +564,11 @@ Insurance is only valuable if workers stay enrolled. A worker who churns after w
 
 Every week, before premium renewal, M5 runs a churn probability for every active worker. A worker in a Tier-2 city with a high premium-to-income ratio and a recently paused policy gets a high churn probability. Their margin is compressed automatically — not enough to lose money, but enough to remove the financial pressure that might cause them to leave. A worker with 18 months of consistent renewals and a KavachScore of 820 gets the full margin — they're staying regardless, so no discount is necessary.
 
+### Algorithm
+XGBoost (Gradient Boosted Trees) – Binary classifier
+
+Why XGBoost over alternatives: XGBoost captures non-linear interactions between features (e.g., high premium + low KavachScore + many past claims) that linear models cannot model. It handles class imbalance natively with scale_pos_weight, produces calibrated probabilities, and outperforms logistic regression on structured tabular data with complex relationships.
+
 #### Formula and Factors
 
 The churn predictor outputs a probability between 0 and 1. This directly feeds the margin formula:
@@ -581,22 +586,27 @@ The churn predictor outputs a probability between 0 and 1. This directly feeds t
 | City tier | Tier-2 workers are more price-sensitive than metro workers |
 | Honesty ratio | Workers with many rejected claims grow frustrated and leave |
 | Zone risk level | High-risk zones see more claim denials, driving dissatisfaction |
-| Social disruption exposure | Frequent curfews or strikes reduce income and drive dissatisfaction |
-| Policy flagged / paused status | A flagged or paused policy is already a halfway-churned state |
-| Premium-to-income ratio | Affordability stress — premiums consuming too large a share of earnings |
-| Age | Older workers tend to be more financially stable and less likely to switch |
-| Score tier | Captures non-linear trust effects that raw score misses |
+| Claim density |past_claims / months_active – Unusually high or low density signals abnormal behaviour |
+| Coverage ratio | coverage / premium – Low ratio means poor value for money → higher churn |
+| Premium-score interaction | premium × kavachScore / 1000 – High price + low trust is especially dangerous for churn |
+| Tenure log | log(months_active + 1) – Churn risk drops quickly in early months, then flattens |
+| Policy flagged status| 1 if policy flagged – Flagged workers are already halfway out the door |
 
-**Training details:** SMOTE handles the class imbalance (~16% churn vs ~84% non-churn). Primary metric is ROC-AUC — a model predicting "no churn" for everyone achieves 84% accuracy but is completely useless. Batch output includes churn risk bucket: Low (< 0.20), Medium (0.20–0.50), High (> 0.50).
 
-#### Why Logistic Regression Over Alternatives
+**Training details:** Data source: workers_final.csv (snapshot; production should use worker_weekly_state for longitudinal data)
+Imbalance handling: scale_pos_weight (XGBoost native – no SMOTE needed)
+Scaling: StandardScaler (improves convergence)
+Hyperparameter tuning: Optuna – 30 trials, maximising ROC‑AUC, 5‑fold StratifiedKFold cross‑validation
+Primary metric: ROC‑AUC – a model predicting "no churn" for everyone achieves 84% accuracy but is useless
+
+#### Why XGBoost Over Alternatives
 
 | Alternative | Why Rejected |
 |-------------|-------------|
-| Random Forest / XGBoost | More powerful but does not output calibrated probabilities by default — and the raw probability is what feeds the margin formula directly |
+| Random Forest | Does not output calibrated probabilities by default; heavier and slower than XGBoost for similar performance |
 | Neural Network | Vastly over-engineered for 13 features on 10,000 rows; training time and complexity are not justified |
 | Rule-based discounting | Cannot adapt to the interaction between multiple churn signals simultaneously |
-| **Logistic Regression** ✓ | Outputs natively calibrated probabilities between 0 and 1, is 10× faster at inference than tree-based alternatives, handles class imbalance well with SMOTE, and is fully interpretable — each coefficient explains directly how that feature pushes churn probability |
+| Logistic Regression | Cannot capture non-linear interactions between features (e.g., high premium + low KavachScore + many past claims); lower ROC-AUC on complex patterns |
 
 ---
 
@@ -604,15 +614,28 @@ The churn predictor outputs a probability between 0 and 1. This directly feeds t
 
 #### The Real Problem It Solves
 
-The premium pricing engine needs to understand zone-level risk — but KavachPay operates across 60+ delivery zones, and most zones have only 5 to 20 enrolled workers. A machine learning model trained on a feature that has 60+ categories with tiny per-category sample sizes will massively overfit. The zone risk engine solves this by clustering the 60+ raw zones into 7 statistically meaningful risk groups, each backed by 50–200 workers — giving the pricing engine a stable, generalisable signal instead of noisy individual-zone data.
+The premium pricing engine needs to understand zone-level risk — but KavachPay operates across 60+ delivery zones, and most zones have only 5 to 20 enrolled workers. A machine learning model trained on a feature that has 60+ categories with tiny per-category sample sizes will massively overfit. The zone risk engine solves this by clustering the 60+ raw zones into 6 statistically meaningful risk groups, each backed by 50–200 workers — giving the pricing engine a stable, generalisable signal instead of noisy individual-zone data
 
 #### How It Works in the Real World
 
 Instead of saying "Koramangala has a risk of X", the zone intelligence engine says "Koramangala belongs to Cluster 3 — moderate disruption frequency, high average income, low fraud rate." This cluster ID becomes a feature in the premium pricing engine. When a new worker signs up in Koramangala, the pricing engine doesn't need historical data from Koramangala specifically — it uses the cluster's shared risk profile, which is statistically robust because it aggregates across dozens of similar zones.
 
-#### Why K=7 Was Chosen
+### Algorithm
+Ensemble clustering – combines multiple algorithms via co‑association matrix, then selects the most stable model.
 
-The silhouette score was computed for K=2 to K=20. K=2 achieved the highest silhouette score (0.416) but was rejected on business grounds — two risk groups are too coarse for meaningful premium differentiation. K=7 was selected because it achieves a silhouette score of 0.35 (above the acceptable threshold), produces clusters with 50–200 workers each (statistically robust), and provides enough granularity for 7 distinct premium adjustment tiers.
+Clustering Methods Compared
+Algorithm	Description
+K‑Means (K=6)	- Standard centroid-based clustering, 100 init for stability
+Agglomerative (ward) -	Hierarchical, minimises within-cluster variance
+Agglomerative (complete) - Hierarchical, uses farthest distance
+HDBSCAN	- Density-based, handles noise and irregular shapes
+Gaussian Mixture Model (GMM) -	Probabilistic, soft assignments
+Bagged K‑Means	- 50 subspaces, each with 80% of features, co‑association averaged
+Ensemble construction: Co‑association matrix weighted by stability × silhouette for each method. Final clusters from average-linkage Agglomerative on the ensemble matrix.
+
+#### Why K=6 Was Chosen
+
+The silhouette score was computed for K=2 to K=20. K=2 achieved the highest silhouette score (0.416) but was rejected on business grounds — two risk groups are too coarse for meaningful premium differentiation. K=6 was selected because it achieves a silhouette score of 0.35 (above the acceptable threshold), produces clusters with 50–200 workers each (statistically robust), and provides enough granularity for 6 distinct premium adjustment tiers.
 
 ---
 
