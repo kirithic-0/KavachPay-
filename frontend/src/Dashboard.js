@@ -267,7 +267,6 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
     const [showChat, setShowChat] = useState(false);
     const [showLoanModal, setShowLoanModal] = useState(false);
     const [showRaiseClaimModal, setShowRaiseClaimModal] = useState(false);
-    const [claimStep, setClaimStep] = useState('form');
     const [claimLoading, setClaimLoading] = useState(false);
     const [claimSuccess, setClaimSuccess] = useState(false);
     const [claimForm, setClaimForm] = useState({ event: 'Heavy Rain', severity: 'Severe', description: '', date: new Date().toISOString().split('T')[0] });
@@ -441,6 +440,7 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
             }
         };
         loadEverything();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [worker?.uid]);
 
     useEffect(() => {

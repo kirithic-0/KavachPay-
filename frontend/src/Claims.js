@@ -195,11 +195,6 @@ export default function Claims({ worker, onBack, lang: propLang, setLang: propSe
         .filter(c => c.status === 'paid')
         .map(c => ({ name: c.id.replace('CLM-', '#'), amount: c.payout }));
 
-    const getSeverityColors = (s) => ({
-        color: s === 'Severe' ? lC.red : s === 'Moderate' ? lC.orange : lC.green,
-        bg: s === 'Severe' ? lC.redLight : s === 'Moderate' ? lC.orangeLight : lC.greenLight,
-        border: s === 'Severe' ? lC.redBorder : s === 'Moderate' ? lC.orangeBorder : lC.greenBorder,
-    });
 
     const CustomTooltip = ({ active, payload, label }) => {
         if (active && payload?.length) return (

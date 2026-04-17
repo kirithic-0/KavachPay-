@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { KavachLogo } from './App';
 
 // ─── API config ───
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -481,6 +480,7 @@ export default function Chatbot({ onClose, lang, worker }) {
         setLoadingCtx(false);
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [worker?.uid]);
 
   useEffect(() => {
