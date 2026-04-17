@@ -1,48 +1,50 @@
 @echo off
+setlocal
+
 echo =========================================
-echo       Starting KavachPay...
+echo       KavachPay - Launcher
 echo =========================================
 echo.
 
-:: 1. Start the Backend
-echo [1/2] Starting Flask Backend...
-cd backend
-
-:: Check if virtual environment exists, if not create it
-if not exist "venv\Scripts\activate.bat" (
-    echo Creating Python virtual environment...
-    python -m venv venv
+:: 1. Check if setup has been run
+if not exist "backend\venv" (
+    echo [NOTICE] Setup has not been run yet.
+    echo Running setup.bat first...
+    echo.
+    call setup.bat
 )
 
-:: Activate venv and install dependencies quietly
-call venv\Scripts\activate.bat
-echo Installing backend requirements (if any missing)...
-pip install -r requirements.txt >nul 2>&1
+:: 2. Start services
+echo Starting KavachPay Services...
+echo.
 
-:: Start the backend in a new cmd window
-start "KavachPay Backend (Port 5000)" cmd /k "venv\Scripts\activate.bat && python app.py"
-
+:: 2a. Mock Platform API (Port 5001)
+echo [1/3] Launching Mock Platform API...
+cd backend
+start "KavachPay - Mock API (5001)" cmd /k "venv\Scripts\activate.bat && python mock_platform_api.py"
 cd ..
 
-:: 2. Start the Frontend
-echo [2/2] Starting React Frontend...
+:: 2b. Flask Backend (Port 5000)
+echo [2/3] Launching Flask Backend...
+cd backend
+start "KavachPay - Backend (5000)" cmd /k "venv\Scripts\activate.bat && python app.py"
+cd ..
+
+:: 2c. React Frontend (Port 3000)
+echo [3/3] Launching React Frontend...
 cd frontend
-
-:: Install npm dependencies quietly
-echo Installing frontend dependencies (if any missing)...
-call npm install --no-audit --no-fund >nul 2>&1
-
-:: Start the frontend in a new cmd window
-start "KavachPay Frontend (Port 3000)" cmd /k "npm start"
-
+start "KavachPay - Frontend (3000)" cmd /k "npm start"
 cd ..
 
-:: 3. Completion Message
 echo.
 echo =========================================
-echo Both servers are starting in separate windows!
-echo - Backend will run on: http://localhost:5000
-echo - Frontend will run on: http://localhost:3000
+echo       All services are starting!
 echo =========================================
 echo.
-pause
+echo - Frontend: http://localhost:3000
+echo - Backend:  http://localhost:5000
+echo - Mock API: http://localhost:5001
+echo.
+echo Press any key to exit this launcher window.
+echo (The service windows will remain open)
+pause >nul
