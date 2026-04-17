@@ -227,8 +227,8 @@ The KavachScore framework could also extend to hyperlocal service workers — pl
 | Premium Pricing (new workers) | GLM Tweedie — actuarial standard for insurance |
 | Fraud Detection & Claim Verification | Gradient Boosted Classifier |
 | Disruption Detection | Multi-API Fusion + spaCy NLP + BART-large-MNLI zero-shot classification |
-| Churn Prediction | Logistic Regression with SMOTE |
-| Zone Risk Clustering | K-Means (K=7) |
+| Churn Prediction | XGBoost |
+| Zone Risk Clustering | Ensemble of K-Means (K=6),DBSCAN,GMM |
 
 ### External APIs
 | API | Purpose |
