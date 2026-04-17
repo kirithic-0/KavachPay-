@@ -56,6 +56,13 @@ const api = {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         }).then(r => r.json());
     },
+    createClaim: async (data) => {
+        return await fetch(`${API_BASE}/api/claims/create`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: JSON.stringify(data)
+        }).then(r => r.json());
+    }
 };
 
 // ─── DESIGN TOKENS ───
@@ -71,6 +78,7 @@ const C = {
     textSec: '#374151',
     textMuted: '#6B7280',
     green: '#2E7D52',
+    success: '#2E7D52',
     greenLight: '#E8F5EE',
     greenBorder: '#A8D5BC',
     orange: '#C05C1A',
@@ -258,6 +266,16 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
     const [lang, setLang] = useState(propLang || 'en');
     const [showChat, setShowChat] = useState(false);
     const [showLoanModal, setShowLoanModal] = useState(false);
+    const [showRaiseClaimModal, setShowRaiseClaimModal] = useState(false);
+    const [claimStep, setClaimStep] = useState('form');
+    const [claimLoading, setClaimLoading] = useState(false);
+    const [claimSuccess, setClaimSuccess] = useState(false);
+    const [claimForm, setClaimForm] = useState({ event: 'Heavy Rain', severity: 'Severe', description: '', date: new Date().toISOString().split('T')[0] });
+    
+    const [loanStep, setLoanStep] = useState('offers');
+    const [termsAccepted, setTermsAccepted] = useState(false);
+    const [verifyingRobot, setVerifyingRobot] = useState(false);
+    const [robotVerified, setRobotVerified] = useState(false);
     const [referralCopied, setReferralCopied] = useState(false);
     const [animatedScore, setAnimatedScore] = useState(0);
     const [expandedNotif, setExpandedNotif] = useState(null);
@@ -432,16 +450,39 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
+    // ─── THEME-AWARE COLORS ───
+    const isDark = theme === 'dark';
+    const lC = isDark ? {
+        ...C,
+        bg: '#0F172A',
+        cardBg: '#1E293B',
+        cardBorder: '#334155',
+        text: '#F8FAFC',
+        textSec: '#E2E8F0',
+        textMuted: '#94A3B8',
+        accentLight: '#1E293B',
+        accentBorder: '#334155',
+        bgSubtle: '#0F172A',
+        green: '#10B981',
+        success: '#10B981',
+        greenLight: '#064E3B',
+        greenBorder: '#065F46',
+        redLight: '#7F1D1D',
+        redBorder: '#991B1B',
+        orangeLight: '#7C2D12',
+        orangeBorder: '#9A3412',
+    } : C;
+
     const card = (children, mb = '12px', extra = {}) => (
-        <div style={{ backgroundColor: C.cardBg, borderRadius: 14, padding: '18px', marginBottom: mb, border: `1px solid ${C.cardBorder}`, boxShadow: '0 2px 12px rgba(91,110,245,0.06)', ...extra }}>
+        <div style={{ backgroundColor: lC.cardBg, borderRadius: 14, padding: '18px', marginBottom: mb, border: `1px solid ${lC.cardBorder}`, boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.3)' : '0 2px 12px rgba(91,110,245,0.06)', ...extra }}>
             {children}
         </div>
     );
 
     const CustomTooltip = ({ active, payload, label }) => {
         if (active && payload?.length) return (
-            <div style={{ backgroundColor: C.cardBg, border: `1px solid ${C.cardBorder}`, borderRadius: 10, padding: '10px 14px', boxShadow: '0 4px 12px rgba(91,110,245,0.1)' }}>
-                <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 4 }}>{label}</p>
+            <div style={{ backgroundColor: lC.cardBg, border: `1px solid ${lC.cardBorder}`, borderRadius: 10, padding: '10px 14px', boxShadow: isDark ? 'none' : '0 4px 12px rgba(91,110,245,0.1)' }}>
+                <p style={{ color: lC.textMuted, fontSize: 12, marginBottom: 4 }}>{label}</p>
                 {payload.map((p, i) => <p key={i} style={{ color: p.color, fontSize: 13, fontWeight: 700 }}>{p.name}: {p.value}</p>)}
             </div>
         );
@@ -484,14 +525,14 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
         onLogout();
     };
 
-    if (loading || !worker) return <div style={{ minHeight: '100vh', backgroundColor: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p>Synchronizing with Kavach backend...</p></div>;
+    if (loading || !worker) return <div style={{ minHeight: '100vh', backgroundColor: lC.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p>Synchronizing with Kavach backend...</p></div>;
 
     if (page === 'policy') return <Policy worker={{ ...worker, zone }} onBack={() => setPage('dashboard')} lang={lang} setLang={setLang} />;
     if (page === 'claims') return <Claims worker={{ ...worker, zone }} onBack={() => setPage('dashboard')} lang={lang} setLang={setLang} />;
 
     // ─── PROFILE PAGE ───
     if (page === 'profile') return (
-        <div style={{ backgroundColor: C.bg, minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
+        <div style={{ backgroundColor: lC.bg, minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
             <div style={{ background: 'linear-gradient(170deg, #08101F 0%, #0D1829 100%)', padding: '14px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <KavachLogo size={28} light />
@@ -503,7 +544,7 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
             </div>
 
             <div style={{ padding: '24px 16px', maxWidth: 480, margin: '0 auto' }}>
-                <p style={{ color: C.text, fontSize: 20, fontWeight: 800, marginBottom: 16 }}>{t.profileTitle}</p>
+                <p style={{ color: lC.text, fontSize: 20, fontWeight: 800, marginBottom: 16 }}>{t.profileTitle}</p>
 
                 {/* Profile Header */}
                 <div style={{ background: 'linear-gradient(170deg, #08101F 0%, #0D1829 100%)', borderRadius: 18, padding: 24, marginBottom: 14, color: 'white', boxShadow: '0 4px 24px rgba(91,110,245,0.3)', textAlign: 'center' }}>
@@ -541,9 +582,9 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
 
                 {/* Edit / View Toggle */}
                 {!editMode ? (
-                    <>
-                        {card(<>
-                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.profileAccount}</p>
+                    <React.Fragment>
+                        {card(<React.Fragment>
+                            <p style={{ color: lC.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.profileAccount}</p>
                             {[
                                 { label: 'Full Name', value: name },
                                 { label: 'Email', value: email },
@@ -555,23 +596,23 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
                                 { label: 'UPI ID', value: worker?.upiId || 'ravi@upi' },
                                 ...(eshramId ? [{ label: 'e-Shram UAN', value: eshramId }] : []),
                             ].map((item, i, arr) => (
-                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: i < arr.length - 1 ? `1px solid ${C.cardBorder}` : 'none' }}>
-                                    <p style={{ color: C.textMuted, fontSize: 13 }}>{item.label}</p>
-                                    <p style={{ color: C.text, fontWeight: 600, fontSize: 13, textAlign: 'right', maxWidth: '55%' }}>{item.value}</p>
+                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: i < arr.length - 1 ? `1px solid ${lC.cardBorder}` : 'none' }}>
+                                    <p style={{ color: lC.textMuted, fontSize: 13 }}>{item.label}</p>
+                                    <p style={{ color: lC.text, fontWeight: 600, fontSize: 13, textAlign: 'right', maxWidth: '55%' }}>{item.value}</p>
                                 </div>
                             ))}
-                        </>)}
+                        </React.Fragment>)}
 
                         <button onClick={() => setEditMode(true)}
                             style={{ width: '100%', background: 'linear-gradient(135deg, #1A3A5C, #08101F)', color: 'white', padding: 14, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: 12, boxShadow: '0 4px 12px rgba(91,110,245,0.25)' }}>
                             {t.editProfile}
                         </button>
-                    </>
+                    </React.Fragment>
                 ) : (
                     // ─── EDIT FORM ───
-                    card(<>
-                        <p style={{ color: C.text, fontWeight: 700, fontSize: 15, marginBottom: 16 }}>{t.editProfile}</p>
-                        <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 16 }}>Aadhaar number and Employee ID cannot be changed.</p>
+                    card(<React.Fragment>
+                        <p style={{ color: lC.text, fontWeight: 700, fontSize: 15, marginBottom: 16 }}>{t.editProfile}</p>
+                        <p style={{ color: lC.textMuted, fontSize: 12, marginBottom: 16 }}>Aadhaar number and Employee ID cannot be changed.</p>
 
                         {[
                             { key: 'name', label: 'Full Name', type: 'text', placeholder: 'Your full name' },
@@ -581,33 +622,33 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
                             { key: 'platform', label: 'Platform', type: 'select', options: ['Swiggy', 'Zomato'] },
                         ].map(field => (
                             <div key={field.key} style={{ marginBottom: 14 }}>
-                                <label style={{ display: 'block', color: C.textSec, fontWeight: 600, fontSize: 13, marginBottom: 6 }}>{field.label}</label>
+                                <label style={{ display: 'block', color: lC.textSec, fontWeight: 600, fontSize: 13, marginBottom: 6 }}>{field.label}</label>
                                 {field.type === 'select' ? (
                                     <select value={editForm[field.key] || ''} onChange={e => setEditForm(f => ({ ...f, [field.key]: e.target.value }))}
-                                        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${C.accentBorder}`, fontSize: 14, outline: 'none', backgroundColor: 'white', color: C.text, fontFamily: 'Inter, sans-serif' }}>
+                                        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${lC.accentBorder}`, fontSize: 14, outline: 'none', backgroundColor: 'white', color: lC.text, fontFamily: 'Inter, sans-serif' }}>
                                         {field.options.map(o => <option key={o}>{o}</option>)}
                                     </select>
                                 ) : (
                                     <input type={field.type} placeholder={field.placeholder} value={editForm[field.key] || ''}
                                         onChange={e => setEditForm(f => ({ ...f, [field.key]: e.target.value }))}
-                                        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${C.accentBorder}`, fontSize: 14, boxSizing: 'border-box', outline: 'none', fontFamily: 'Inter, sans-serif', color: C.text }} />
+                                        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${lC.accentBorder}`, fontSize: 14, boxSizing: 'border-box', outline: 'none', fontFamily: 'Inter, sans-serif', color: lC.text }} />
                                 )}
                             </div>
                         ))}
 
                         <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                            <button onClick={() => setEditMode(false)} style={{ flex: 1, backgroundColor: C.cardBg, color: C.accent, padding: 13, borderRadius: 10, border: `1.5px solid ${C.accentBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t.cancelEdit}</button>
+                            <button onClick={() => setEditMode(false)} style={{ flex: 1, backgroundColor: lC.cardBg, color: lC.accent, padding: 13, borderRadius: 10, border: `1.5px solid ${lC.accentBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t.cancelEdit}</button>
                             <button onClick={handleSaveProfile} disabled={savingProfile}
                                 style={{ flex: 2, background: 'linear-gradient(135deg, #1A3A5C, #08101F)', color: 'white', padding: 13, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: savingProfile ? 0.7 : 1 }}>
                                 {savingProfile ? 'Saving...' : t.saveChanges}
                             </button>
                         </div>
-                    </>)
+                    </React.Fragment>)
                 )}
 
                 {/* Policy Info */}
-                {card(<>
-                    <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.profilePolicy}</p>
+                {card(<React.Fragment>
+                    <p style={{ color: lC.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.profilePolicy}</p>
                     {[
                         { label: 'Policy ID', value: 'KVP-' + phone.slice(-6) },
                         { label: 'Policy Type', value: policyType === 'individual' ? 'Individual' : 'Employer Sponsored' },
@@ -616,48 +657,48 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
                         { label: 'KavachScore', value: score + ' — ' + getScoreTier() },
                         { label: 'Referral Code', value: referralCode },
                     ].map((item, i, arr) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: i < arr.length - 1 ? `1px solid ${C.cardBorder}` : 'none' }}>
-                            <p style={{ color: C.textMuted, fontSize: 13 }}>{item.label}</p>
-                            <p style={{ color: C.text, fontWeight: 600, fontSize: 13 }}>{item.value}</p>
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: i < arr.length - 1 ? `1px solid ${lC.cardBorder}` : 'none' }}>
+                            <p style={{ color: lC.textMuted, fontSize: 13 }}>{item.label}</p>
+                            <p style={{ color: lC.text, fontWeight: 600, fontSize: 13 }}>{item.value}</p>
                         </div>
                     ))}
-                </>)}
+                </React.Fragment>)}
 
                 {/* Settings */}
-                {card(<>
-                    <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.profileSettings}</p>
+                {card(<React.Fragment>
+                    <p style={{ color: lC.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.profileSettings}</p>
 
                     {/* Dark Mode Toggle */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: `1px solid ${C.cardBorder}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: `1px solid ${lC.cardBorder}` }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: C.accentLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: lC.accentLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={lC.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     {theme === 'dark'
-                                        ? <><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /></>
+                                        ? <React.Fragment><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /></React.Fragment>
                                         : <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                                     }
                                 </svg>
                             </div>
                             <div>
-                                <p style={{ color: C.text, fontWeight: 600, fontSize: 14 }}>{theme === 'dark' ? t.lightMode : t.darkMode}</p>
-                                <p style={{ color: C.textMuted, fontSize: 12, marginTop: 2 }}>Switch theme</p>
+                                <p style={{ color: lC.text, fontWeight: 600, fontSize: 14 }}>{theme === 'dark' ? t.lightMode : t.darkMode}</p>
+                                <p style={{ color: lC.textMuted, fontSize: 12, marginTop: 2 }}>Switch theme</p>
                             </div>
                         </div>
                         <button onClick={toggleTheme}
-                            style={{ width: 46, height: 24, borderRadius: 12, backgroundColor: theme === 'dark' ? C.accent : '#E5E7EB', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background-color 0.2s ease' }}>
+                            style={{ width: 46, height: 24, borderRadius: 12, backgroundColor: theme === 'dark' ? lC.accent : '#E5E7EB', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background-color 0.2s ease' }}>
                             <div style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: 3, left: theme === 'dark' ? 25 : 3, transition: 'left 0.2s ease', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
                         </button>
                     </div>
 
                     {/* Language */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: `1px solid ${C.cardBorder}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: `1px solid ${lC.cardBorder}` }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: C.accentLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
+                            <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: lC.accentLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={lC.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
                             </div>
                             <div>
-                                <p style={{ color: C.text, fontWeight: 600, fontSize: 14 }}>Language</p>
-                                <p style={{ color: C.textMuted, fontSize: 12, marginTop: 2 }}>EN / हि / த</p>
+                                <p style={{ color: lC.text, fontWeight: 600, fontSize: 14 }}>Language</p>
+                                <p style={{ color: lC.textMuted, fontSize: 12, marginTop: 2 }}>EN / हि / த</p>
                             </div>
                         </div>
                         <LangToggle lang={lang} setLang={setLang} />
@@ -666,85 +707,238 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
                     {/* Sign Out */}
                     <div style={{ paddingTop: 12, marginBottom: 4 }}>
                         <button onClick={onLogout}
-                            style={{ width: '100%', backgroundColor: C.redLight, color: C.red, padding: 13, borderRadius: 10, border: `1px solid ${C.redBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                            style={{ width: '100%', backgroundColor: lC.redLight, color: lC.red, padding: 13, borderRadius: 10, border: `1px solid ${lC.redBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
                             {t.signOut}
                         </button>
                     </div>
-                </>)}
+                </React.Fragment>)}
 
                 {/* Resignation / Close Account */}
-                {card(<>
-                    <p style={{ color: C.red, fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{t.resignTitle}</p>
-                    <p style={{ color: C.textMuted, fontSize: 13, marginBottom: 14, lineHeight: 1.6 }}>{t.resignSub}</p>
+                {card(<React.Fragment>
+                    <p style={{ color: lC.red, fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{t.resignTitle}</p>
+                    <p style={{ color: lC.textMuted, fontSize: 13, marginBottom: 14, lineHeight: 1.6 }}>{t.resignSub}</p>
 
                     {resignStep === 0 && (
                         <button onClick={() => setResignStep(1)}
-                            style={{ width: '100%', backgroundColor: C.redLight, color: C.red, padding: 12, borderRadius: 10, border: `1px solid ${C.redBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                            style={{ width: '100%', backgroundColor: lC.redLight, color: lC.red, padding: 12, borderRadius: 10, border: `1px solid ${lC.redBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
                             {t.resignBtn}
                         </button>
                     )}
 
                     {resignStep === 1 && (
                         <div className="fade-in">
-                            <div style={{ backgroundColor: C.redLight, borderRadius: 10, padding: '12px 14px', marginBottom: 12, border: `1px solid ${C.redBorder}` }}>
-                                <p style={{ color: C.red, fontWeight: 700, fontSize: 13 }}>{t.resignConfirm}</p>
-                                <p style={{ color: C.red, fontSize: 12, marginTop: 4 }}>{t.resignConfirmSub}</p>
+                            <div style={{ backgroundColor: lC.redLight, borderRadius: 10, padding: '12px 14px', marginBottom: 12, border: `1px solid ${lC.redBorder}` }}>
+                                <p style={{ color: lC.red, fontWeight: 700, fontSize: 13 }}>{t.resignConfirm}</p>
+                                <p style={{ color: lC.red, fontSize: 12, marginTop: 4 }}>{t.resignConfirmSub}</p>
                             </div>
                             <input type="text" placeholder='Type "DELETE" to confirm' value={resignInput} onChange={e => setResignInput(e.target.value)}
-                                style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${C.redBorder}`, fontSize: 14, boxSizing: 'border-box', outline: 'none', fontFamily: 'Inter, sans-serif', color: C.text, marginBottom: 10 }} />
+                                style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${lC.redBorder}`, fontSize: 14, boxSizing: 'border-box', outline: 'none', fontFamily: 'Inter, sans-serif', color: lC.text, marginBottom: 10 }} />
                             <div style={{ display: 'flex', gap: 10 }}>
                                 <button onClick={() => { setResignStep(0); setResignInput(''); }}
-                                    style={{ flex: 1, backgroundColor: C.cardBg, color: C.accent, padding: 12, borderRadius: 10, border: `1.5px solid ${C.accentBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                                    style={{ flex: 1, backgroundColor: lC.cardBg, color: lC.accent, padding: 12, borderRadius: 10, border: `1.5px solid ${lC.accentBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
                                     Cancel
                                 </button>
                                 <button onClick={handleResign} disabled={resignInput !== 'DELETE'}
-                                    style={{ flex: 2, backgroundColor: resignInput === 'DELETE' ? C.red : C.redLight, color: 'white', padding: 12, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: resignInput === 'DELETE' ? 'pointer' : 'default', opacity: resignInput === 'DELETE' ? 1 : 0.5 }}>
+                                    style={{ flex: 2, backgroundColor: resignInput === 'DELETE' ? lC.red : lC.redLight, color: 'white', padding: 12, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: resignInput === 'DELETE' ? 'pointer' : 'default', opacity: resignInput === 'DELETE' ? 1 : 0.5 }}>
                                     {t.resignFinal}
                                 </button>
                             </div>
                         </div>
                     )}
-                </>, '0px', { border: `1px solid ${C.redBorder}` })}
+                </React.Fragment>, '0px', { border: `1px solid ${lC.redBorder}` })}
             </div>
         </div>
     );
 
     // ─── MAIN DASHBOARD ───
     return (
-        <div style={{ backgroundColor: C.bg, minHeight: '100vh', fontFamily: 'Inter, sans-serif', paddingBottom: 80 }}>
+        <div style={{ backgroundColor: lC.bg, minHeight: '100vh', fontFamily: 'Inter, sans-serif', paddingBottom: 80 }}>
+
+            {/* Raise Claim Modal */}
+            {showRaiseClaimModal && (
+                <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowRaiseClaimModal(false)}>
+                    <div className="modal-content" style={{ backgroundColor: lC.cardBg, maxWidth: 440 }}>
+                        <div style={{ background: 'linear-gradient(170deg, #08101F 0%, #0D1829 100%)', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '20px 20px 0 0' }}>
+                            <p style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>Report Disruption</p>
+                            <button onClick={() => setShowRaiseClaimModal(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', width: 28, height: 28, borderRadius: '50%', cursor: 'pointer', fontSize: 14 }}>✕</button>
+                        </div>
+                        
+                        <div style={{ padding: 24 }}>
+                            {!claimSuccess ? (
+                                <React.Fragment>
+                                    <div style={{ marginBottom: 16 }}>
+                                        <label style={{ display: 'block', color: lC.textSec, fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Incident Type</label>
+                                        <select value={claimForm.event} onChange={e => setClaimForm({...claimForm, event: e.target.value})}
+                                            style={{ width: '100%', padding: '12px', borderRadius: 10, border: `1.5px solid ${lC.cardBorder}`, backgroundColor: lC.cardBg, color: lC.text, fontSize: 14, outline: 'none' }}>
+                                            {['Heavy Rain', 'Heatwave', 'Pollution Alert', 'Flash Flood', 'Accident', 'Medical Emergency', 'Platform Downtime', 'Strike / Protests'].map(o => <option key={o}>{o}</option>)}
+                                        </select>
+                                    </div>
+                                    
+                                    <div style={{ marginBottom: 16 }}>
+                                        <label style={{ display: 'block', color: lC.textSec, fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Severity Level</label>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                                            {['Minor', 'Moderate', 'Severe'].map(s => (
+                                                <button key={s} onClick={() => setClaimForm({...claimForm, severity: s})}
+                                                    style={{ padding: '10px', borderRadius: 8, border: `2px solid ${claimForm.severity === s ? (s === 'Severe' ? lC.red : s === 'Moderate' ? lC.orange : lC.accent) : lC.cardBorder}`, background: claimForm.severity === s ? (s === 'Severe' ? lC.redLight : s === 'Moderate' ? lC.orangeLight : lC.accentLight) : 'transparent', color: claimForm.severity === s ? (s === 'Severe' ? lC.red : s === 'Moderate' ? lC.orange : lC.accent) : lC.textMuted, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                                                    {s}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div style={{ marginBottom: 20 }}>
+                                        <label style={{ display: 'block', color: lC.textSec, fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Description (Optional)</label>
+                                        <textarea rows="3" placeholder="Explain what happened..." value={claimForm.description} onChange={e => setClaimForm({...claimForm, description: e.target.value})}
+                                            style={{ width: '100%', padding: '12px', borderRadius: 10, border: `1.5px solid ${lC.cardBorder}`, backgroundColor: lC.cardBg, color: lC.text, fontSize: 14, resize: 'none', outline: 'none', boxSizing: 'border-box' }} />
+                                    </div>
+
+                                    <button onClick={async () => {
+                                        setClaimLoading(true);
+                                        const res = await fetch(`${API_BASE}/api/claims/create`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                                            body: JSON.stringify({
+                                                worker_id: worker.uid,
+                                                event: claimForm.event,
+                                                code: 'USR-RPT',
+                                                severity: claimForm.severity,
+                                                description: claimForm.description,
+                                                zone: zone,
+                                                manual_claim: true
+                                            })
+                                        }).then(r => r.json());
+                                        setClaimLoading(false);
+                                        if (res.success) setClaimSuccess(true);
+                                    }} disabled={claimLoading}
+                                        style={{ width: '100%', backgroundColor: lC.accent, color: 'white', padding: 14, borderRadius: 10, border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer', transition: 'opacity 0.2s' }}>
+                                        {claimLoading ? 'Submitting...' : 'Submit Claim'}
+                                    </button>
+                                </React.Fragment>
+                            ) : (
+                                <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                                    <div style={{ width: 60, height: 60, borderRadius: '50%', backgroundColor: lC.greenLight, border: `2px solid ${lC.greenBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={lC.green} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                    </div>
+                                    <p style={{ color: lC.text, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>Claim Submitted</p>
+                                    <p style={{ color: lC.textSec, fontSize: 14, lineHeight: 1.5, marginBottom: 24 }}>Your report is now under verification by our AI models and human audit team. Status will appear in "My Claims".</p>
+                                    <button onClick={() => { setShowRaiseClaimModal(false); setClaimSuccess(false); setTab('home'); }}
+                                        style={{ width: '100%', backgroundColor: lC.navy, color: 'white', padding: 14, borderRadius: 10, border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                                        Close
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Loan Modal */}
             {showLoanModal && (
                 <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowLoanModal(false)}>
-                    <div className="modal-content" style={{ backgroundColor: C.cardBg }}>
-                        <div style={{ background: 'linear-gradient(170deg, #08101F 0%, #0D1829 100%)', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '20px 20px 0 0' }}>
-                            <p style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>Loan Eligibility — KavachScore</p>
-                            <button onClick={() => setShowLoanModal(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', width: 28, height: 28, borderRadius: '50%', cursor: 'pointer', fontSize: 14 }}>✕</button>
-                        </div>
-                        <div style={{ padding: 20, overflowY: 'auto', maxHeight: '60vh' }}>
-                            <div style={{ backgroundColor: C.accentLight, borderRadius: 12, padding: 16, marginBottom: 16, textAlign: 'center', border: `1px solid ${C.accentBorder}` }}>
-                                <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 4 }}>YOUR KAVACHSCORE</p>
-                                <p style={{ color: C.accent, fontWeight: 800, fontSize: 40 }}>{score}</p>
-                                <p style={{ color: C.green, fontSize: 13, fontWeight: 600, marginTop: 4 }}>Trusted Worker — Premium loan eligible</p>
-                            </div>
-                            {[
-                                { name: 'KreditBee', amount: '₹10,000 – ₹2,00,000', rate: '1.02% per month', color: C.accent, bg: C.accentLight, border: C.accentBorder },
-                                { name: 'MoneyTap', amount: '₹3,000 – ₹5,00,000', rate: '1.08% per month', color: C.green, bg: C.greenLight, border: C.greenBorder },
-                                { name: 'CashE', amount: '₹5,000 – ₹4,00,000', rate: '2.50% per month', color: C.orange, bg: C.orangeLight, border: C.orangeBorder },
-                            ].map((partner, i) => (
-                                <div key={i} style={{ backgroundColor: partner.bg, borderRadius: 12, padding: '14px 16px', marginBottom: 10, border: `1px solid ${partner.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
-                                    <div>
-                                        <p style={{ color: partner.color, fontWeight: 700, fontSize: 14 }}>{partner.name}</p>
-                                        <p style={{ color: C.textMuted, fontSize: 12, marginTop: 2 }}>{partner.amount}</p>
-                                        <p style={{ color: C.textMuted, fontSize: 11, marginTop: 2 }}>{partner.rate}</p>
-                                    </div>
-                                    <div style={{ backgroundColor: partner.color, color: 'white', padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>Apply →</div>
+                    <div className="modal-content" style={{ backgroundColor: lC.cardBg, maxWidth: 460 }}>
+                        {loanStep === 'offers' && (
+                            <React.Fragment>
+                                <div style={{ background: 'linear-gradient(170deg, #08101F 0%, #0D1829 100%)', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '20px 20px 0 0' }}>
+                                    <p style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>{t.loanTitle}</p>
+                                    <button onClick={() => setShowLoanModal(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', width: 28, height: 28, borderRadius: '50%', cursor: 'pointer', fontSize: 14 }}>✕</button>
                                 </div>
-                            ))}
-                            <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: 12, marginTop: 8, border: `1px solid ${C.cardBorder}` }}>
-                                <p style={{ color: C.textMuted, fontSize: 11, lineHeight: 1.6 }}>KavachPay is not a lender. We share your KavachScore with partners who make independent lending decisions.</p>
+                                <div style={{ padding: 24 }}>
+                                    <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                                        <p style={{ color: lC.green, fontWeight: 800, fontSize: 24, marginBottom: 6 }}>{getLoanAmount()}</p>
+                                        <p style={{ color: lC.textSec, fontSize: 13 }}>{t.loanQualify}</p>
+                                    </div>
+                                    <div style={{ backgroundColor: lC.accentLight, borderRadius: 12, padding: 14, marginBottom: 20, border: `1px solid ${lC.accentBorder}` }}>
+                                        <p style={{ color: lC.text, fontSize: 13, lineHeight: 1.6 }}>{t.loanSub}</p>
+                                    </div>
+                                    <button onClick={() => setLoanStep('terms')}
+                                        style={{ width: '100%', backgroundColor: lC.accent, color: 'white', padding: 14, borderRadius: 10, border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                                        {t.loanBtn}
+                                    </button>
+                                    <p style={{ color: lC.textMuted, fontSize: 11, textAlign: 'center', marginTop: 14 }}>{t.loanPartner}</p>
+                                </div>
+                            </React.Fragment>
+                        )}
+                        {loanStep === 'terms' && (
+                            <React.Fragment>
+                                <div style={{ background: 'linear-gradient(135deg, #08101F 0%, #0D1829 100%)', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '20px 20px 0 0' }}>
+                                    <p style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>Terms & Conditions</p>
+                                    <button onClick={() => setLoanStep('offers')} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', padding: '4px 12px', borderRadius: 20, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>← Back</button>
+                                </div>
+                                <div style={{ padding: 24 }}>
+                                    <div style={{ maxHeight: 200, overflowY: 'auto', backgroundColor: lC.bg, padding: 16, borderRadius: 8, fontSize: 12, color: lC.textSec, lineHeight: 1.6, border: `1px solid ${lC.cardBorder}`, marginBottom: 16 }}>
+                                        <p style={{ fontWeight: 700, marginBottom: 8, color: lC.text }}>1. Authorization</p>
+                                        <p style={{ marginBottom: 12 }}>You authorize KavachPay to share your profile details, KYC documents, and KavachScore with our partner lenders exclusively for evaluating your loan eligibility.</p>
+                                        <p style={{ fontWeight: 700, marginBottom: 8, color: lC.text }}>2. Repayment Obligations</p>
+                                        <p style={{ marginBottom: 12 }}>You acknowledge that taking a loan creates a legal obligation to repay the lender according to their specific terms. Failure to repay may adversely affect your KavachScore.</p>
+                                        <p style={{ fontWeight: 700, marginBottom: 8, color: lC.text }}>3. Soft Credit Pull</p>
+                                        <p style={{ marginBottom: 12 }}>By continuing, you consent to a soft credit pull which will not affect your CIBIL score. A hard pull will only happen if you accept a final loan offer from the partner.</p>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                                        <input type="checkbox" id="terms-accept" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} style={{ width: 18, height: 18, accentColor: lC.accent, cursor: 'pointer' }} />
+                                        <label htmlFor="terms-accept" style={{ fontSize: 13, color: lC.text, cursor: 'pointer', userSelect: 'none' }}>I agree to the Terms & Conditions and Privacy Policy</label>
+                                    </div>
+                                    <button onClick={() => setLoanStep('captcha')} disabled={!termsAccepted}
+                                        style={{ width: '100%', background: termsAccepted ? `linear-gradient(135deg, ${lC.accent}, ${lC.navy})` : '#D1D5DB', color: 'white', padding: 14, borderRadius: 10, border: 'none', fontSize: 15, fontWeight: 700, cursor: termsAccepted ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}>
+                                        Accept & Continue
+                                    </button>
+                                </div>
+                            </React.Fragment>
+                        )}
+                        {loanStep === 'captcha' && (
+                            <React.Fragment>
+                                <div style={{ background: 'linear-gradient(135deg, #08101F 0%, #0D1829 100%)', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '20px 20px 0 0' }}>
+                                    <p style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>Security Check</p>
+                                    <button onClick={() => setLoanStep('terms')} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', padding: '4px 12px', borderRadius: 20, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>← Back</button>
+                                </div>
+                                <div style={{ padding: '40px 24px', textAlign: 'center' }}>
+                                    <p style={{ color: lC.text, fontSize: 14, marginBottom: 24, fontWeight: 500 }}>Please verify that you are not a robot before proceeding.</p>
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: lC.bg, border: `1px solid ${lC.cardBorder}`, borderRadius: 4, padding: '16px 20px', gap: 16, boxShadow: '0 2px 4px rgba(0,0,0,0.05)', width: 280, justifyContent: 'space-between' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                                            <div onClick={() => {
+                                                if (verifyingRobot || robotVerified) return;
+                                                setVerifyingRobot(true);
+                                                setTimeout(() => { setVerifyingRobot(false); setRobotVerified(true); }, 1500);
+                                            }} style={{ width: 26, height: 26, border: robotVerified ? 'none' : '2px solid #D1D5DB', borderRadius: 2, backgroundColor: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (verifyingRobot || robotVerified) ? 'default' : 'pointer', overflow: 'hidden' }}>
+                                                {verifyingRobot && <div style={{ width: 16, height: 16, border: '3px solid transparent', borderTop: '3px solid #1A3A5C', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />}
+                                                {robotVerified && <svg width="26" height="26" viewBox="0 0 24 24" fill={lC.green}><polyline points="20 6 9 17 4 12" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>}
+                                            </div>
+                                            <p style={{ color: lC.textSec, fontSize: 14, fontWeight: 500, userSelect: 'none' }}>I'm not a robot</p>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                            <div style={{ width: 24, height: 24, padding: 4 }}>
+                                                <svg viewBox="0 0 24 24" fill={lC.accent}><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6V10.5L15,12L16,10.2L13.5,8.8V6H12Z" /></svg>
+                                            </div>
+                                            <p style={{ fontSize: 9, color: lC.textMuted }}>reCAPTCHA</p>
+                                        </div>
+                                    </div>
+                                    {robotVerified && (
+                                        <div className="fade-in" style={{ marginTop: 24 }}>
+                                            <button onClick={() => setLoanStep('success')}
+                                                style={{ width: '100%', background: `linear-gradient(135deg, ${lC.accent}, ${lC.navy})`, color: 'white', padding: 14, borderRadius: 10, border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                                                Proceed to Application
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </React.Fragment>
+                        )}
+                        {loanStep === 'success' && (
+                            <div className="fade-in" style={{ padding: '40px 24px', textAlign: 'center' }}>
+                                <div style={{ width: 72, height: 72, borderRadius: '50%', backgroundColor: lC.greenLight, border: `4px solid ${lC.greenBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={lC.green} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                </div>
+                                <p style={{ color: lC.text, fontWeight: 800, fontSize: 20, marginBottom: 12 }}>Application Successful</p>
+                                <p style={{ color: lC.textSec, fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+                                    Your loan application request has been successfully submitted to our partner.
+                                    <br/><br/>
+                                    <strong>Further communications regarding loan approval and disbursement will be proceeded by the loan company directly to your registered email and phone number.</strong>
+                                </p>
+                                <button onClick={() => { setShowLoanModal(false); setTimeout(() => { setLoanStep('offers'); setTermsAccepted(false); setRobotVerified(false); }, 300); }}
+                                    style={{ width: '100%', backgroundColor: lC.navy, color: 'white', padding: 14, borderRadius: 10, border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                                    Back to Dashboard
+                                </button>
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -763,19 +957,19 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
 
             {/* Zone Auto-Update Banner */}
             {showZoneUpdate && !zoneUpdated && (
-                <div className="fade-in" style={{ backgroundColor: C.accentLight, borderBottom: `1px solid ${C.accentBorder}`, padding: '12px 20px' }}>
+                <div className="fade-in" style={{ backgroundColor: lC.accentLight, borderBottom: `1px solid ${lC.accentBorder}`, padding: '12px 20px' }}>
                     <div style={{ maxWidth: 520, margin: '0 auto' }}>
-                        <p style={{ color: C.accent, fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{t.zoneUpdateTitle}</p>
-                        <p style={{ color: C.textSec, fontSize: 12, marginBottom: 10, lineHeight: 1.5 }}>
+                        <p style={{ color: lC.accent, fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{t.zoneUpdateTitle}</p>
+                        <p style={{ color: lC.textSec, fontSize: 12, marginBottom: 10, lineHeight: 1.5 }}>
                             {t.zoneUpdateMsg} <strong>{suggestedZone}</strong>.
                         </p>
                         <div style={{ display: 'flex', gap: 8 }}>
                             <button onClick={handleZoneAccept}
-                                style={{ backgroundColor: C.accent, color: 'white', padding: '7px 16px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                                style={{ backgroundColor: lC.accent, color: 'white', padding: '7px 16px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                                 {t.zoneUpdateAccept}
                             </button>
                             <button onClick={() => setShowZoneUpdate(false)}
-                                style={{ backgroundColor: 'transparent', color: C.textMuted, padding: '7px 16px', borderRadius: 8, border: `1px solid ${C.accentBorder}`, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                                style={{ backgroundColor: 'transparent', color: lC.textMuted, padding: '7px 16px', borderRadius: 8, border: `1px solid ${lC.accentBorder}`, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                                 {t.zoneUpdateIgnore}
                             </button>
                         </div>
@@ -785,14 +979,14 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
 
             {/* Zone Updated Confirmation */}
             {zoneUpdated && (
-                <div className="fade-in" style={{ backgroundColor: C.greenLight, borderBottom: `1px solid ${C.greenBorder}`, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                    <p style={{ color: C.green, fontSize: 12, fontWeight: 600 }}>Your zone has been updated to <strong>{suggestedZone}</strong>. Policy coverage now applies to your new zone.</p>
+                <div className="fade-in" style={{ backgroundColor: lC.greenLight, borderBottom: `1px solid ${lC.greenBorder}`, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={lC.green} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <p style={{ color: lC.green, fontSize: 12, fontWeight: 600 }}>Your zone has been updated to <strong>{suggestedZone}</strong>. Policy coverage now applies to your new zone.</p>
                 </div>
             )}
 
             {/* Tab Bar */}
-            <div style={{ backgroundColor: C.cardBg, display: 'flex', borderBottom: `1px solid ${C.cardBorder}`, overflowX: 'auto' }}>
+            <div style={{ backgroundColor: lC.cardBg, display: 'flex', borderBottom: `1px solid ${lC.cardBorder}`, overflowX: 'auto' }}>
                 {[
                     { key: 'home', label: t.home },
                     { key: 'earnings', label: t.earnings },
@@ -801,7 +995,7 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
                     { key: 'forum', label: t.forum },
                 ].map(tb => (
                     <button key={tb.key} onClick={() => setTab(tb.key)}
-                        style={{ padding: '14px 18px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', fontWeight: tab === tb.key ? 700 : 500, color: tab === tb.key ? C.accent : C.textMuted, borderBottom: tab === tb.key ? `2px solid ${C.accent}` : '2px solid transparent', fontSize: 13, whiteSpace: 'nowrap', fontFamily: 'Inter, sans-serif' }}>
+                        style={{ padding: '14px 18px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', fontWeight: tab === tb.key ? 700 : 500, color: tab === tb.key ? lC.accent : lC.textMuted, borderBottom: tab === tb.key ? `2px solid ${lC.accent}` : '2px solid transparent', fontSize: 13, whiteSpace: 'nowrap', fontFamily: 'Inter, sans-serif' }}>
                         {tb.label}
                     </button>
                 ))}
@@ -845,94 +1039,98 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
 
                         {/* Loan Banner */}
                         {getLoanAmount() ? (
-                            card(<>
+                            card(<React.Fragment>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                     <div style={{ flex: 1 }}>
-                                        <p style={{ color: C.accent, fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{t.loanTitle}</p>
-                                        <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 8 }}>{t.loanSub}</p>
-                                        <p style={{ color: C.textSec, fontSize: 13 }}>{t.loanQualify} <span style={{ color: C.green, fontWeight: 800, fontSize: 16 }}>{getLoanAmount()}</span></p>
-                                        <p style={{ color: C.textMuted, fontSize: 11, marginTop: 4 }}>{t.loanPartner}</p>
+                                        <p style={{ color: lC.accent, fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{t.loanTitle}</p>
+                                        <p style={{ color: lC.textMuted, fontSize: 12, marginBottom: 8 }}>{t.loanSub}</p>
+                                        <p style={{ color: lC.textSec, fontSize: 13 }}>{t.loanQualify} <span style={{ color: lC.green, fontWeight: 800, fontSize: 16 }}>{getLoanAmount()}</span></p>
+                                        <p style={{ color: lC.textMuted, fontSize: 11, marginTop: 4 }}>{t.loanPartner}</p>
                                     </div>
-                                    <div style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: C.accentLight, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginLeft: 12 }}>
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+                                    <div style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: lC.accentLight, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginLeft: 12 }}>
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={lC.accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
                                     </div>
                                 </div>
                                 <button onClick={() => setShowLoanModal(true)}
                                     style={{ width: '100%', background: 'linear-gradient(135deg, #1A3A5C, #08101F)', color: 'white', padding: '10px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: 12 }}>
                                     {t.loanBtn}
                                 </button>
-                            </>, '12px', { borderLeft: `4px solid ${C.accent}` })
+                            </React.Fragment>, '12px', { borderLeft: `4px solid ${lC.accent}` })
                         ) : (
-                            card(<p style={{ color: C.orange, fontSize: 13 }}>{t.loanLow}</p>, '12px', { backgroundColor: C.orangeLight, borderLeft: `4px solid ${C.orange}` })
+                            card(<p style={{ color: lC.orange, fontSize: 13 }}>{t.loanLow}</p>, '12px', { backgroundColor: lC.orangeLight, borderLeft: `4px solid ${lC.orange}` })
                         )}
 
                         {/* Referral */}
-                        {card(<>
-                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{t.referralTitle}</p>
-                            <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 14 }}>{t.referralSub}</p>
+                        {card(<React.Fragment>
+                            <p style={{ color: lC.text, fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{t.referralTitle}</p>
+                            <p style={{ color: lC.textMuted, fontSize: 12, marginBottom: 14 }}>{t.referralSub}</p>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-                                <div style={{ flex: 1, backgroundColor: C.bg, borderRadius: 10, padding: '12px 16px', border: `1.5px dashed ${C.accentBorder}`, textAlign: 'center' }}>
-                                    <p style={{ color: C.accent, fontWeight: 800, fontSize: 18, letterSpacing: 2 }}>{referralCode}</p>
+                                <div style={{ flex: 1, backgroundColor: lC.bg, borderRadius: 10, padding: '12px 16px', border: `1.5px dashed ${lC.accentBorder}`, textAlign: 'center' }}>
+                                    <p style={{ color: lC.accent, fontWeight: 800, fontSize: 18, letterSpacing: 2 }}>{referralCode}</p>
                                 </div>
                                 <button onClick={handleCopyReferral}
-                                    style={{ backgroundColor: referralCopied ? C.green : C.accent, color: 'white', padding: '12px 16px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                    style={{ backgroundColor: referralCopied ? lC.green : lC.accent, color: 'white', padding: '12px 16px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>
                                     {referralCopied ? t.referralCopied : t.referralCopy}
                                 </button>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                                <div style={{ backgroundColor: C.accentLight, borderRadius: 8, padding: '10px', textAlign: 'center', border: `1px solid ${C.accentBorder}` }}>
-                                    <p style={{ color: C.accent, fontWeight: 800, fontSize: 18 }}>1</p>
-                                    <p style={{ color: C.textMuted, fontSize: 11, marginTop: 2 }}>{t.referralUsed}</p>
+                                <div style={{ backgroundColor: lC.accentLight, borderRadius: 8, padding: '10px', textAlign: 'center', border: `1px solid ${lC.accentBorder}` }}>
+                                    <p style={{ color: lC.accent, fontWeight: 800, fontSize: 18 }}>1</p>
+                                    <p style={{ color: lC.textMuted, fontSize: 11, marginTop: 2 }}>{t.referralUsed}</p>
                                 </div>
-                                <div style={{ backgroundColor: C.greenLight, borderRadius: 8, padding: '10px', textAlign: 'center', border: `1px solid ${C.greenBorder}` }}>
-                                    <p style={{ color: C.green, fontWeight: 800, fontSize: 18 }}>₹10</p>
-                                    <p style={{ color: C.textMuted, fontSize: 11, marginTop: 2 }}>{t.referralSaved}</p>
+                                <div style={{ backgroundColor: lC.greenLight, borderRadius: 8, padding: '10px', textAlign: 'center', border: `1px solid ${lC.greenBorder}` }}>
+                                    <p style={{ color: lC.green, fontWeight: 800, fontSize: 18 }}>₹10</p>
+                                    <p style={{ color: lC.textMuted, fontSize: 11, marginTop: 2 }}>{t.referralSaved}</p>
                                 </div>
                             </div>
-                        </>)}
+                        </React.Fragment>)}
 
                         {/* Earnings Meter */}
-                        {card(<>
-                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{t.earningsTitle}</p>
-                            <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 14 }}>{t.earningsSub}</p>
+                        {card(<React.Fragment>
+                            <p style={{ color: lC.text, fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{t.earningsTitle}</p>
+                            <p style={{ color: lC.textMuted, fontSize: 12, marginBottom: 14 }}>{t.earningsSub}</p>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                                <p style={{ color: C.textMuted, fontSize: 13 }}>{t.earnedSoFar}</p>
-                                <p style={{ color: C.accent, fontWeight: 700, fontSize: 13 }}>₹{earnedSoFar} / ₹{avgIncome}</p>
+                                <p style={{ color: lC.textMuted, fontSize: 13 }}>{t.earnedSoFar}</p>
+                                <p style={{ color: lC.accent, fontWeight: 700, fontSize: 13 }}>₹{earnedSoFar} / ₹{avgIncome}</p>
                             </div>
-                            <div style={{ backgroundColor: C.accentLight, borderRadius: 8, height: 10, overflow: 'hidden', marginBottom: 10 }}>
-                                <div style={{ width: `${earningsPercent}%`, height: '100%', backgroundColor: earningsPercent >= 80 ? C.green : earningsPercent >= 50 ? C.orange : C.red, borderRadius: 8, transition: 'width 0.8s ease' }} />
+                            <div style={{ backgroundColor: lC.accentLight, borderRadius: 8, height: 10, overflow: 'hidden', marginBottom: 10 }}>
+                                <div style={{ width: `${earningsPercent}%`, height: '100%', backgroundColor: earningsPercent >= 80 ? lC.green : earningsPercent >= 50 ? lC.orange : lC.red, borderRadius: 8, transition: 'width 0.8s ease' }} />
                             </div>
-                            <div style={{ backgroundColor: C.accentLight, borderRadius: 10, padding: '10px 12px', border: `1px solid ${C.accentBorder}` }}>
-                                <p style={{ color: C.accent, fontSize: 13, fontWeight: 600 }}>{t.kavachCovers} ₹{remainingCoverage} {t.kavachCoversSub}</p>
+                            <div style={{ backgroundColor: lC.accentLight, borderRadius: 10, padding: '10px 12px', border: `1px solid ${lC.accentBorder}` }}>
+                                <p style={{ color: lC.accent, fontSize: 13, fontWeight: 600 }}>{t.kavachCovers} ₹{remainingCoverage} {t.kavachCoversSub}</p>
                             </div>
-                        </>)}
+                        </React.Fragment>)}
 
                         {/* Disruption History */}
-                        {card(<>
-                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.disruptionHistory}</p>
+                        {card(<React.Fragment>
+                            <p style={{ color: lC.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.disruptionHistory}</p>
                             {disruptionHistory.map((d, i) => (
-                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: 10, marginBottom: 6, backgroundColor: d.paid ? C.greenLight : C.bg, border: `1px solid ${d.paid ? C.greenBorder : C.cardBorder}` }}>
+                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: 10, marginBottom: 6, backgroundColor: d.paid ? lC.greenLight : lC.bg, border: `1px solid ${d.paid ? lC.greenBorder : lC.cardBorder}` }}>
                                     <div>
-                                        <p style={{ color: C.text, fontWeight: 600, fontSize: 13 }}>{d.event}</p>
-                                        <p style={{ color: C.textMuted, fontSize: 11, marginTop: 2 }}>{d.date} · {d.severity}</p>
-                                        {d.txn && <p style={{ color: C.textMuted, fontSize: 10, marginTop: 1, opacity: 0.7 }}>{d.txn}</p>}
+                                        <p style={{ color: lC.text, fontWeight: 600, fontSize: 13 }}>{d.event}</p>
+                                        <p style={{ color: lC.textMuted, fontSize: 11, marginTop: 2 }}>{d.date} · {d.severity}</p>
+                                        {d.txn && <p style={{ color: lC.textMuted, fontSize: 10, marginTop: 1, opacity: 0.7 }}>{d.txn}</p>}
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
-                                        <p style={{ color: d.paid ? C.green : C.red, fontWeight: 800, fontSize: 14 }}>{d.paid ? '+₹' + d.payout : '—'}</p>
-                                        <p style={{ color: C.textMuted, fontSize: 11 }}>{d.paid ? t.paid : t.notPaid}</p>
+                                        <p style={{ color: d.paid ? lC.green : lC.red, fontWeight: 800, fontSize: 14 }}>{d.paid ? '+₹' + d.payout : '—'}</p>
+                                        <p style={{ color: lC.textMuted, fontSize: 11 }}>{d.paid ? t.paid : t.notPaid}</p>
                                     </div>
                                 </div>
                             ))}
-                        </>)}
+                        </React.Fragment>)}
 
                         {/* Quick Actions */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                            <button onClick={() => setShowRaiseClaimModal(true)}
+                                style={{ gridColumn: 'span 2', background: 'linear-gradient(135deg, #BE123C, #881337)', color: 'white', padding: 16, borderRadius: 12, border: 'none', fontWeight: 800, cursor: 'pointer', fontSize: 14, boxShadow: '0 4px 14px rgba(190,18,60,0.3)' }}>
+                                Report Incident / Raise Claim
+                            </button>
                             {[
                                 { label: t.myPolicy, action: () => setPage('policy') },
                                 { label: t.myClaims, action: () => setPage('claims') },
                             ].map((btn, i) => (
                                 <button key={i} onClick={btn.action}
-                                    style={{ backgroundColor: C.cardBg, color: C.accent, padding: 16, borderRadius: 12, border: `1.5px solid ${C.accentBorder}`, fontWeight: 700, cursor: 'pointer', fontSize: 14, fontFamily: 'Inter, sans-serif' }}>
+                                    style={{ backgroundColor: lC.cardBg, color: lC.accent, padding: 16, borderRadius: 12, border: `1.5px solid ${lC.accentBorder}`, fontWeight: 700, cursor: 'pointer', fontSize: 14, fontFamily: 'Inter, sans-serif' }}>
                                     {btn.label}
                                 </button>
                             ))}
@@ -945,91 +1143,91 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
                     <div className="fade-in">
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
                             {[
-                                { label: 'Avg Weekly', value: '₹' + avgIncome, color: C.accent, bg: C.accentLight, border: C.accentBorder },
-                                { label: 'Total Payouts', value: '₹' + disruptionHistory.filter(d => d.paid).reduce((a, b) => a + b.payout, 0), color: C.green, bg: C.greenLight, border: C.greenBorder },
-                                { label: 'This Week', value: '₹' + earnedSoFar, color: C.orange, bg: C.orangeLight, border: C.orangeBorder },
+                                { label: 'Avg Weekly', value: '₹' + avgIncome, color: lC.accent, bg: lC.accentLight, border: lC.accentBorder },
+                                { label: 'Total Payouts', value: '₹' + disruptionHistory.filter(d => d.paid).reduce((a, b) => a + b.payout, 0), color: lC.success, bg: lC.greenLight, border: lC.greenBorder },
+                                { label: 'This Week', value: '₹' + earnedSoFar, color: lC.orange, bg: lC.orangeLight, border: lC.orangeBorder },
                             ].map((s, i) => (
                                 <div key={i} style={{ backgroundColor: s.bg, borderRadius: 12, padding: 14, textAlign: 'center', border: `1px solid ${s.border}` }}>
                                     <p style={{ color: s.color, fontWeight: 800, fontSize: 16 }}>{s.value}</p>
-                                    <p style={{ color: C.textMuted, fontSize: 11, marginTop: 4 }}>{s.label}</p>
+                                    <p style={{ color: lC.textMuted, fontSize: 11, marginTop: 4 }}>{s.label}</p>
                                 </div>
                             ))}
                         </div>
-                        {card(<>
-                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{t.weeklyChart}</p>
-                            <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 16 }}>Last 6 weeks</p>
+                        {card(<React.Fragment>
+                            <p style={{ color: lC.text, fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{t.weeklyChart}</p>
+                            <p style={{ color: lC.textMuted, fontSize: 12, marginBottom: 16 }}>Last 6 weeks</p>
                             <ResponsiveContainer width="100%" height={200}>
                                 <BarChart data={earningsData} barGap={4}>
-                                    <XAxis dataKey="week" tick={{ fontSize: 11, fill: C.textMuted }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fontSize: 10, fill: C.textMuted }} axisLine={false} tickLine={false} />
+                                    <XAxis dataKey="week" tick={{ fontSize: 11, fill: lC.textMuted }} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fontSize: 10, fill: lC.textMuted }} axisLine={false} tickLine={false} />
                                     <Tooltip content={<CustomTooltip />} />
-                                    <Bar dataKey="earned" fill={C.accent} radius={[4, 4, 0, 0]} name="Earnings" />
-                                    <Bar dataKey="coverage" fill={C.accentBorder} radius={[4, 4, 0, 0]} name="Coverage" />
+                                    <Bar dataKey="earned" fill={lC.accent} radius={[4, 4, 0, 0]} name="Earnings" />
+                                    <Bar dataKey="coverage" fill={lC.accentBorder} radius={[4, 4, 0, 0]} name="Coverage" />
                                 </BarChart>
                             </ResponsiveContainer>
-                        </>)}
+                        </React.Fragment>)}
                     </div>
                 )}
 
                 {/* SCORE TAB */}
                 {tab === 'score' && (
                     <div className="fade-in">
-                        {card(<>
+                        {card(<React.Fragment>
                             <div style={{ textAlign: 'center', padding: '10px 0' }}>
                                 <div style={{ width: 120, height: 120, borderRadius: '50%', border: `8px solid ${getScoreColor()}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', boxShadow: `0 0 28px ${getScoreColor()}30` }}>
                                     <p style={{ fontSize: 32, fontWeight: 800, color: getScoreColor(), lineHeight: 1 }}>{animatedScore}</p>
-                                    <p style={{ fontSize: 10, color: C.textMuted, marginTop: 2 }}>/ 900</p>
+                                    <p style={{ fontSize: 10, color: lC.textMuted, marginTop: 2 }}>/ 900</p>
                                 </div>
                                 <p style={{ color: getScoreColor(), fontWeight: 700, fontSize: 16 }}>{getScoreTier()}</p>
-                                <p style={{ color: C.textMuted, fontSize: 13, marginTop: 5 }}>
+                                <p style={{ color: lC.textMuted, fontSize: 13, marginTop: 5 }}>
                                     {score >= 750 ? 'Instant payouts · Lowest premium' : score >= 500 ? '2hr delay · +15% premium' : '24hr delay · Manual review'}
                                 </p>
                             </div>
-                        </>)}
+                        </React.Fragment>)}
 
-                        {card(<>
-                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.scoreGoesUp}</p>
+                        {card(<React.Fragment>
+                            <p style={{ color: lC.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.scoreGoesUp}</p>
                             {[
-                                { action: 'Legitimate claim — all 5 layers passed', points: '+10 pts' },
-                                { action: 'Weekly active streak', points: '+5 pts' },
-                                { action: '6-month tenure bonus', points: '+15 pts' },
-                                { action: 'Zero fraud flags for 30 days', points: '+8 pts' },
+                                { action: 'Legitimate claim — verified', points: '+10' },
+                                { action: 'Weekly active streak', points: '+5' },
+                                { action: '6-month tenure bonus', points: '+15' },
+                                { action: 'Zero issues for 30 days', points: '+8' },
                             ].map((item, i) => (
-                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: C.greenLight, border: `1px solid ${C.greenBorder}`, borderRadius: 10, marginBottom: 8 }}>
-                                    <p style={{ color: C.green, fontWeight: 600, fontSize: 13 }}>{item.action}</p>
-                                    <p style={{ color: C.green, fontWeight: 800, fontSize: 14, marginLeft: 12 }}>{item.points}</p>
+                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: lC.greenLight, border: `1px solid ${lC.greenBorder}`, borderRadius: 10, marginBottom: 8 }}>
+                                    <p style={{ color: lC.success, fontWeight: 600, fontSize: 13 }}>{item.action}</p>
+                                    <p style={{ color: lC.success, fontWeight: 800, fontSize: 14, marginLeft: 12 }}>+{item.points}</p>
                                 </div>
                             ))}
-                        </>)}
+                        </React.Fragment>)}
 
-                        {card(<>
-                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.scoreGoesDown}</p>
+                        {card(<React.Fragment>
+                            <p style={{ color: lC.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{t.scoreGoesDown}</p>
                             {[
-                                { action: 'Suspicious claim pattern', points: '-25 pts' },
-                                { action: 'Active during disruption window', points: '-20 pts' },
-                                { action: 'Missed self declaration', points: '-5 pts' },
-                                { action: 'Policy lapse over 2 weeks', points: '-10 pts' },
+                                { action: 'Suspicious claim pattern', points: '-25' },
+                                { action: 'Active during disruption', points: '-20' },
+                                { action: 'Missed self declaration', points: '-5' },
+                                { action: 'Policy lapse', points: '-10' },
                             ].map((item, i) => (
-                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: C.redLight, border: `1px solid ${C.redBorder}`, borderRadius: 10, marginBottom: 8 }}>
-                                    <p style={{ color: C.red, fontWeight: 600, fontSize: 13 }}>{item.action}</p>
-                                    <p style={{ color: C.red, fontWeight: 800, fontSize: 14, marginLeft: 12 }}>{item.points}</p>
+                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: lC.redLight, border: `1px solid ${lC.redBorder}`, borderRadius: 10, marginBottom: 8 }}>
+                                    <p style={{ color: lC.red, fontWeight: 600, fontSize: 13 }}>{item.action}</p>
+                                    <p style={{ color: lC.red, fontWeight: 800, fontSize: 14, marginLeft: 12 }}>{item.points}</p>
                                 </div>
                             ))}
-                        </>)}
+                        </React.Fragment>)}
 
-                        {card(<>
-                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{t.scoreTimeline}</p>
-                            <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 16 }}>Last 2 months</p>
+                        {card(<React.Fragment>
+                            <p style={{ color: lC.text, fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{t.scoreTimeline}</p>
+                            <p style={{ color: lC.textMuted, fontSize: 12, marginBottom: 16 }}>Last 2 months</p>
                             <ResponsiveContainer width="100%" height={180}>
                                 <LineChart data={scoreHistory}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke={C.cardBorder} />
-                                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: C.textMuted }} axisLine={false} tickLine={false} />
-                                    <YAxis domain={[700, 820]} tick={{ fontSize: 11, fill: C.textMuted }} axisLine={false} tickLine={false} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke={lC.cardBorder} opacity={0.4} />
+                                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: lC.textMuted }} axisLine={false} tickLine={false} />
+                                    <YAxis domain={[700, 820]} tick={{ fontSize: 11, fill: lC.textMuted }} axisLine={false} tickLine={false} />
                                     <Tooltip content={<CustomTooltip />} />
-                                    <Line type="monotone" dataKey="score" stroke={C.accent} strokeWidth={3} dot={{ fill: C.accent, r: 5, strokeWidth: 0 }} name="KavachScore" />
+                                    <Line type="monotone" dataKey="score" stroke={lC.accent} strokeWidth={3} dot={{ fill: lC.accent, r: 5, strokeWidth: 0 }} name="KavachScore" />
                                 </LineChart>
                             </ResponsiveContainer>
-                        </>)}
+                        </React.Fragment>)}
                     </div>
                 )}
 
@@ -1037,28 +1235,28 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
                 {tab === 'notifications' && (
                     <div className="fade-in">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                            <p style={{ color: C.text, fontWeight: 700, fontSize: 15 }}>{t.allNotifs}</p>
+                            <p style={{ color: lC.text, fontWeight: 700, fontSize: 15 }}>{t.allNotifs}</p>
                             {unreadCount > 0 && (
-                                <div style={{ backgroundColor: C.red, borderRadius: 12, padding: '3px 10px' }}>
-                                    <p style={{ color: 'white', fontSize: 11, fontWeight: 700 }}>{unreadCount} {t.unread}</p>
+                                <div style={{ backgroundColor: lC.red, borderRadius: 12, padding: '3px 10px' }}>
+                                    <p style={{ color: 'white', fontSize: 11, fontWeight: 700 }}>{unreadCount} {unreadCount === 1 ? 'Alert' : 'Alerts'}</p>
                                 </div>
                             )}
                         </div>
                         {notifications.map((n, i) => (
                             <div key={i} onClick={() => setExpandedNotif(expandedNotif === i ? null : i)}
-                                style={{ backgroundColor: C.cardBg, borderRadius: 14, padding: 16, marginBottom: 10, border: `1px solid ${n.read ? C.cardBorder : n.border}`, cursor: 'pointer', borderLeft: `4px solid ${n.color}` }}>
+                                style={{ backgroundColor: lC.cardBg, borderRadius: 14, padding: 16, marginBottom: 10, border: `1px solid ${n.read ? lC.cardBorder : n.border}`, cursor: 'pointer', borderLeft: `4px solid ${n.color}` }}>
                                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                                    <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: n.read ? 'transparent' : C.red, flexShrink: 0, marginTop: 4 }} />
+                                    <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: n.read ? 'transparent' : lC.red, flexShrink: 0, marginTop: 4 }} />
                                     <div style={{ flex: 1 }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                                            <p style={{ color: C.text, fontWeight: 700, fontSize: 13 }}>{n.title}</p>
+                                            <p style={{ color: lC.text, fontWeight: 700, fontSize: 13 }}>{n.title}</p>
                                         </div>
-                                        <p style={{ color: C.textMuted, fontSize: 12, lineHeight: 1.5 }}>{n.msg}</p>
-                                        <p style={{ color: C.textMuted, fontSize: 11, marginTop: 6, opacity: 0.7 }}>{n.time}</p>
+                                        <p style={{ color: lC.textMuted, fontSize: 12, lineHeight: 1.5 }}>{n.msg}</p>
+                                        <p style={{ color: lC.textMuted, fontSize: 11, marginTop: 6, opacity: 0.7 }}>{n.time}</p>
                                         {expandedNotif === i && (
-                                            <div className="fade-in" style={{ backgroundColor: C.bg, borderRadius: 8, padding: 12, marginTop: 10, border: `1px solid ${C.cardBorder}` }}>
+                                            <div className="fade-in" style={{ backgroundColor: lC.bg, borderRadius: 8, padding: 12, marginTop: 10, border: `1px solid ${lC.cardBorder}` }}>
                                                 {n.detail.split('\n').map((line, j) => (
-                                                    <p key={j} style={{ color: C.textMuted, fontSize: 12, lineHeight: 1.7 }}>{line}</p>
+                                                    <p key={j} style={{ color: lC.textMuted, fontSize: 12, lineHeight: 1.7 }}>{line}</p>
                                                 ))}
                                             </div>
                                         )}
@@ -1076,7 +1274,7 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
             </div>
 
             {/* Bottom Nav */}
-            <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: C.cardBg, borderTop: `1px solid ${C.cardBorder}`, padding: '10px 20px', display: 'flex', justifyContent: 'space-around', zIndex: 100 }}>
+            <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: lC.cardBg, borderTop: `1px solid ${lC.cardBorder}`, padding: '10px 0', display: 'flex', justifyContent: 'space-around', zIndex: 100, borderLeft: 'none', borderRight: 'none' }}>
                 {[
                     { label: t.home, key: 'home', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg> },
                     { label: t.earnings, key: 'earnings', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg> },
@@ -1085,7 +1283,7 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
                     { label: t.forum, key: 'forum', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg> },
                 ].map(tb => (
                     <button key={tb.key} onClick={() => setTab(tb.key)}
-                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 10px', color: tab === tb.key ? C.accent : C.textMuted, fontFamily: 'Inter, sans-serif' }}>
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 10px', color: tab === tb.key ? lC.accent : lC.textMuted, fontFamily: 'Inter, sans-serif' }}>
                         {tb.icon}
                         <p style={{ fontSize: 10, fontWeight: tab === tb.key ? 700 : 500 }}>{tb.label}</p>
                     </button>
@@ -1094,7 +1292,7 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
 
             {/* Chatbot */}
             <button onClick={() => setShowChat(prev => !prev)}
-                style={{ position: 'fixed', bottom: 80, right: 20, backgroundColor: C.accent, color: 'white', width: 48, height: 48, borderRadius: '50%', border: 'none', cursor: 'pointer', boxShadow: '0 4px 16px rgba(91,110,245,0.35)', zIndex: 99, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                style={{ position: 'fixed', bottom: 80, right: 20, backgroundColor: lC.accent, color: 'white', width: 48, height: 48, borderRadius: '50%', border: 'none', cursor: 'pointer', boxShadow: '0 4px 16px rgba(91,110,245,0.35)', zIndex: 99, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
             </button>
             {showChat && <Chatbot

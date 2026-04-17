@@ -21,6 +21,7 @@ from routes.payments import payments_bp
 from routes.claims import claims_bp
 from routes.policy import policy_bp
 from routes.ml import ml_bp
+from routes.payment import payment_bp
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 import atexit
@@ -43,6 +44,7 @@ def create_app():
     app.register_blueprint(policy_bp,       url_prefix="/api/policy")
     app.register_blueprint(ml_bp,           url_prefix="/api/ml")
     app.register_blueprint(weather_bp,      url_prefix="/api")
+    app.register_blueprint(payment_bp,      url_prefix="/api/payment")
 
     @app.route("/")
     @app.route("/api/health")

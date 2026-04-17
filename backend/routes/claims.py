@@ -65,6 +65,8 @@ def create_claim():
     severity = data.get("severity")
     manual_claim = data.get("manual_claim", True)
     zone = data.get("zone")
+    description = data.get("description", "")
+    incident_date = data.get("incident_date", datetime.utcnow().strftime('%b %d, %Y'))
     
     if not all([worker_id, event, code, severity, zone]):
         return jsonify({"success": False, "error": "Missing required fields"}), 400
@@ -81,8 +83,8 @@ def create_claim():
     
     claim_id = f"CLM-{uuid.uuid4().hex[:6].upper()}"
     payout_amt = 0
-    status = "skipped"
-    skip_reason = "Fraud flags detected" if risk_prob > 0.5 else "Manual verification required"
+    status = "pending" if manual_claim else "skipped"
+    skip_reason = "Manual report filed - awaiting verification" if manual_claim else "Fraud flags detected"
     txn_id = None
     
     if risk_prob <= 0.1: 
@@ -129,7 +131,7 @@ def create_claim():
     now_time = datetime.utcnow().strftime('%I:%M %p')
     claim_doc = {
         "id": claim_id,
-        "date": now_str,
+        "date": incident_date,
         "timestamp": firestore.SERVER_TIMESTAMP,
         "event": event,
         "code": code,
@@ -138,12 +140,13 @@ def create_claim():
         "payout": payout_amt,
         "txn": txn_id,
         "zone": zone,
-        "verification_layers": 5,
+        "description": description,
+        "verification_layers": 5 if status == "paid" else 2,
         "fraud_flags": len(flags),
         "skip_reason": skip_reason,
         "timeline": [
             {"time": now_time, "event": "Claim Initiated", "done": True},
-            {"time": now_time, "event": "ML Verification Passed" if status == "paid" else "Under Review", "done": status == "paid"}
+            {"time": now_time, "event": "ML Verification Passed" if status == "paid" else "Under Admin Review", "done": status == "paid"}
         ]
     }
     

@@ -268,11 +268,84 @@ const PaymentModal = ({ premium, name, discountApplied, onSuccess, onClose }) =>
     const [upiId, setUpiId] = useState('');
     const [upiError, setUpiError] = useState('');
 
-    const handlePay = () => {
+    const handlePay = async () => {
         if (selectedMethod === 'upi' && !upiId.includes('@')) { setUpiError('Enter a valid UPI ID (e.g. ravi@upi)'); return; }
         setUpiError('');
         setPaymentStep('processing');
-        setTimeout(() => setPaymentStep('success'), 2500);
+        
+        try {
+            const res = await fetch(`${API_BASE}/api/payment/create-order`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: finalAmount, currency: 'INR' })
+            });
+            const data = await res.json();
+            
+            if (!data.success) {
+                alert('Payment error: ' + (data.error || 'Server error. Please try again.'));
+                setPaymentStep('select');
+                return;
+            }
+
+            // ── MOCK MODE (Razorpay keys not configured) ──
+            if (!data.order_id || data.order_id.startsWith('order_mock_')) {
+                await new Promise(r => setTimeout(r, 2000));
+                await fetch(`${API_BASE}/api/payment/verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        razorpay_order_id: data.order_id,
+                        razorpay_payment_id: 'pay_' + Math.random().toString(36).substr(2, 10).toUpperCase(),
+                        razorpay_signature: 'mock_signature'
+                    })
+                });
+                setPaymentStep('success');
+                return;
+            }
+
+            // ── LIVE RAZORPAY FLOW ──
+            const loadScript = () => new Promise((resolve) => {
+                if (window.Razorpay) return resolve(true);
+                const script = document.createElement('script');
+                script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                script.onload = () => resolve(true);
+                script.onerror = () => resolve(false);
+                document.body.appendChild(script);
+            });
+            const loaded = await loadScript();
+            if (!loaded) {
+                alert('Could not load payment gateway. Check your internet connection.');
+                setPaymentStep('select');
+                return;
+            }
+
+            const options = {
+                key: process.env.REACT_APP_RAZORPAY_KEY_ID,
+                amount: Math.round(data.amount * 100),
+                currency: data.currency,
+                name: 'KavachPay',
+                description: 'Weekly Premium',
+                order_id: data.order_id,
+                handler: async (response) => {
+                    await fetch(`${API_BASE}/api/payment/verify`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(response)
+                    });
+                    setPaymentStep('success');
+                },
+                modal: { ondismiss: () => setPaymentStep('select') },
+                prefill: { name: name },
+                theme: { color: '#1A3A5C' }
+            };
+            const rzp = new window.Razorpay(options);
+            rzp.on('payment.failed', () => setPaymentStep('select'));
+            rzp.open();
+            setPaymentStep('select'); // Reset so our modal shows correctly while Razorpay popup is open
+        } catch (e) {
+            console.error('Payment error:', e);
+            setPaymentStep('select');
+        }
     };
 
     return (
@@ -352,7 +425,8 @@ const PaymentModal = ({ premium, name, discountApplied, onSuccess, onClose }) =>
                     <div style={{ textAlign: 'center', padding: '20px 0' }}>
                         <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: '4px solid #EFF6FF', borderTop: '4px solid #1A3A5C', margin: '0 auto 20px', animation: 'spin 1s linear infinite' }} />
                         <p style={{ color: '#111827', fontWeight: '700', fontSize: '16px', marginBottom: '6px' }}>Processing Payment</p>
-                        <p style={{ color: '#9CA3AF', fontSize: '13px' }}>Please do not close this window...</p>
+                        <p style={{ color: '#9CA3AF', fontSize: '13px', marginBottom: '16px' }}>Verifying your order, please wait…</p>
+                        <button onClick={() => setPaymentStep('select')} style={{ background: 'none', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '8px 24px', fontSize: '13px', color: '#6B7280', cursor: 'pointer', fontFamily: 'Inter' }}>Cancel</button>
                         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                     </div>
                 )}

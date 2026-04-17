@@ -197,6 +197,7 @@ export default function AdminDashboard({ onBack }) {
         { key: 'overview', label: 'Overview', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg> },
         { key: 'zones', label: 'Zones', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg> },
         { key: 'workers', label: 'Workers', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg> },
+        { key: 'platforms', label: 'Platforms', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="6" height="18" rx="1" /><rect x="9" y="8" width="6" height="13" rx="1" /><rect x="16" y="13" width="6" height="8" rx="1" /></svg> },
         { key: 'disruptions', label: 'Disruptions', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg> },
         { key: 'financials', label: 'Financials', icon: <span style={{ fontSize: 15, fontWeight: 800, lineHeight: 1 }}>₹</span> },
     ];
@@ -541,6 +542,141 @@ export default function AdminDashboard({ onBack }) {
                             </div>
                         </div>
                     )}
+
+                    {/* ─── PLATFORMS ─── */}
+                    {activeTab === 'platforms' && (() => {
+                        const swiggyWorkers = workers.filter(w => w.platform === 'Swiggy');
+                        const zomatoWorkers = workers.filter(w => w.platform === 'Zomato');
+                        const avgScore = (arr) => arr.length ? Math.round(arr.reduce((a, b) => a + (b.score || 0), 0) / arr.length) : 0;
+                        const avgPremium = (arr) => arr.length ? Math.round(arr.reduce((a, b) => a + (b.premium || 0), 0) / arr.length) : 0;
+                        const totalClaims = (arr) => arr.reduce((a, b) => a + (b.claims_count || 0), 0);
+                        const totalPayout = (arr) => arr.reduce((a, b) => a + (b.last_payout || 0), 0);
+
+                        const PLATFORMS = [
+                            { name: 'Swiggy', color: '#EA580C', bg: '#FFF7ED', darkBg: '#2A1500', border: '#FED7AA', workers: swiggyWorkers },
+                            { name: 'Zomato', color: '#BE123C', bg: '#FFF1F2', darkBg: '#2A0010', border: '#FECDD3', workers: zomatoWorkers },
+                        ];
+
+                        return (
+                            <div>
+                                {/* Header KPIs */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                                    {PLATFORMS.map(p => (
+                                        <div key={p.name} style={{ backgroundColor: '#1E2130', borderRadius: 12, padding: 20, border: `1px solid ${p.color}30` }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                                                <div style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: p.color + '20', border: `1px solid ${p.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <span style={{ fontSize: 15, fontWeight: 900, color: p.color }}>{p.name[0]}</span>
+                                                </div>
+                                                <div>
+                                                    <p style={{ color: 'white', fontWeight: 700, fontSize: 16 }}>{p.name}</p>
+                                                    <p style={{ color: p.color, fontSize: 11, fontWeight: 600 }}>{p.workers.length} Workers Enrolled</p>
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                                {[
+                                                    { label: 'Avg KavachScore', value: avgScore(p.workers) },
+                                                    { label: 'Avg Premium', value: '₹' + avgPremium(p.workers) + '/wk' },
+                                                    { label: 'Total Claims', value: totalClaims(p.workers) },
+                                                    { label: 'Total Payouts', value: '₹' + totalPayout(p.workers).toLocaleString() },
+                                                ].map((s, j) => (
+                                                    <div key={j} style={{ backgroundColor: '#111827', borderRadius: 8, padding: '10px 12px' }}>
+                                                        <p style={{ color: '#6B7280', fontSize: 10, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{s.label}</p>
+                                                        <p style={{ color: p.color, fontWeight: 700, fontSize: 18 }}>{s.value}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Head-to-Head Comparison */}
+                                <div style={{ backgroundColor: '#1E2130', borderRadius: 12, padding: 20, border: '1px solid #2D3348', marginBottom: 20 }}>
+                                    <p style={{ color: 'white', fontWeight: 700, fontSize: 14, marginBottom: 16 }}>Head-to-Head Comparison</p>
+                                    {[
+                                        { label: 'Workers Enrolled', s: swiggyWorkers.length, z: zomatoWorkers.length },
+                                        { label: 'Average KavachScore', s: avgScore(swiggyWorkers), z: avgScore(zomatoWorkers) },
+                                        { label: 'Average Weekly Premium (₹)', s: avgPremium(swiggyWorkers), z: avgPremium(zomatoWorkers) },
+                                        { label: 'Total Claims Filed', s: totalClaims(swiggyWorkers), z: totalClaims(zomatoWorkers) },
+                                        { label: 'Total Payouts Received (₹)', s: totalPayout(swiggyWorkers), z: totalPayout(zomatoWorkers) },
+                                    ].map((row, i) => {
+                                        const total = (row.s || 0) + (row.z || 0) || 1;
+                                        const sPct = Math.round((row.s / total) * 100);
+                                        return (
+                                            <div key={i} style={{ marginBottom: 14 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                                    <p style={{ color: '#94A3B8', fontSize: 12 }}>{row.label}</p>
+                                                    <div style={{ display: 'flex', gap: 20 }}>
+                                                        <p style={{ color: '#EA580C', fontSize: 13, fontWeight: 700 }}>{row.s.toLocaleString()}</p>
+                                                        <p style={{ color: '#6B7280', fontSize: 11, alignSelf: 'center' }}>vs</p>
+                                                        <p style={{ color: '#BE123C', fontSize: 13, fontWeight: 700 }}>{row.z.toLocaleString()}</p>
+                                                    </div>
+                                                </div>
+                                                <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: '#BE123C40' }}>
+                                                    <div style={{ width: sPct + '%', backgroundColor: '#EA580C', transition: 'width 0.6s ease' }} />
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
+                                                    <p style={{ color: '#EA580C', fontSize: 10, fontWeight: 600 }}>Swiggy {sPct}%</p>
+                                                    <p style={{ color: '#BE123C', fontSize: 10, fontWeight: 600 }}>Zomato {100 - sPct}%</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Platform Worker Tables */}
+                                {PLATFORMS.map(p => (
+                                    <div key={p.name} style={{ backgroundColor: '#1E2130', borderRadius: 12, border: `1px solid ${p.color}30`, overflow: 'hidden', marginBottom: 16 }}>
+                                        <div style={{ padding: '14px 20px', borderBottom: '1px solid #1E2530', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                            <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: p.color }} />
+                                            <p style={{ color: 'white', fontWeight: 700, fontSize: 14 }}>{p.name} Workers ({p.workers.length})</p>
+                                        </div>
+                                        <div style={{ overflowX: 'auto' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                                <thead>
+                                                    <tr>
+                                                        {['Worker', 'Zone', 'KavachScore', 'Premium', 'Claims', 'Last Payout', 'Status'].map(h => (
+                                                            <th key={h} style={thStyle}>{h}</th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {p.workers.map((w, i) => (
+                                                        <tr key={i} style={{ backgroundColor: 'transparent', transition: 'background-color 0.15s' }}
+                                                            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#252A3A'}
+                                                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                                                            <td style={{ padding: '11px 16px', borderBottom: '1px solid #1E2530', whiteSpace: 'nowrap' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                    <div style={{ width: 26, height: 26, borderRadius: '50%', backgroundColor: p.color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                                        <span style={{ fontSize: 11, fontWeight: 700, color: p.color }}>{w.name[0]}</span>
+                                                                    </div>
+                                                                    <span style={{ color: 'white', fontSize: 12, fontWeight: 600 }}>{w.name}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td style={getTdStyle(i)}>{w.zone}</td>
+                                                            <td style={{ padding: '11px 16px', borderBottom: '1px solid #1E2530' }}>
+                                                                <span style={{ color: w.score >= 750 ? '#10B981' : w.score >= 500 ? '#F97316' : '#EF4444', fontWeight: 700, fontSize: 13 }}>{w.score}</span>
+                                                            </td>
+                                                            <td style={getTdStyle(i)}>₹{w.premium}/wk</td>
+                                                            <td style={getTdStyle(i)}>{w.claims_count}</td>
+                                                            <td style={{ ...getTdStyle(i), color: '#10B981', fontWeight: 600 }}>₹{(w.last_payout || 0).toLocaleString()}</td>
+                                                            <td style={{ padding: '11px 16px', borderBottom: '1px solid #1E2530' }}>
+                                                                <div style={{ display: 'inline-flex', backgroundColor: getStatusColor(w.status) + '20', border: `1px solid ${getStatusColor(w.status)}40`, borderRadius: 6, padding: '3px 8px' }}>
+                                                                    <span style={{ color: getStatusColor(w.status), fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>{w.status}</span>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {p.workers.length === 0 && (
+                                                        <tr><td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: '#6B7280', fontSize: 13 }}>No {p.name} workers found.</td></tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                    })()}
 
                     {/* ─── DISRUPTIONS ─── */}
                     {activeTab === 'disruptions' && (

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { KavachLogo } from './App';
+import { KavachLogo, useTheme } from './App';
 
 // ─── API CONFIG ───
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -223,21 +223,94 @@ const LangToggle = ({ lang, setLang }) => (
     </div>
 );
 
-const PaymentModal = ({ premium, name, onSuccess, onClose }) => {
+const PaymentModal = ({ premium, name, onSuccess, onClose, lC }) => {
     const [step, setStep] = useState('select');
     const [method, setMethod] = useState('upi');
     const [upiId, setUpiId] = useState('');
     const [upiError, setUpiError] = useState('');
     const [txnId, setTxnId] = useState('');
 
-    const handlePay = () => {
+    const handlePay = async () => {
         if (method === 'upi' && !upiId.includes('@')) { setUpiError('Enter a valid UPI ID'); return; }
         setUpiError('');
         setStep('processing');
-        setTimeout(() => {
-            setTxnId('pay_' + Math.random().toString(36).substr(2, 10).toUpperCase());
-            setStep('success');
-        }, 2500);
+        
+        try {
+            const res = await fetch(`${API_BASE}/api/payment/create-order`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: premium, currency: 'INR' })
+            });
+            const data = await res.json();
+            
+            if (!data.success) {
+                alert('Payment error: ' + (data.error || 'Server error. Please try again.'));
+                setStep('select');
+                return;
+            }
+
+            // ── MOCK MODE (Razorpay keys not configured) ──
+            if (!data.order_id || data.order_id.startsWith('order_mock_')) {
+                await new Promise(r => setTimeout(r, 2000));
+                const mockId = 'pay_' + Math.random().toString(36).substr(2, 10).toUpperCase();
+                await fetch(`${API_BASE}/api/payment/verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        razorpay_order_id: data.order_id,
+                        razorpay_payment_id: mockId,
+                        razorpay_signature: 'mock_signature'
+                    })
+                });
+                setTxnId(mockId);
+                setStep('success');
+                return;
+            }
+
+            // ── LIVE RAZORPAY FLOW ──
+            const loadScript = () => new Promise((resolve) => {
+                if (window.Razorpay) return resolve(true);
+                const script = document.createElement('script');
+                script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                script.onload = () => resolve(true);
+                script.onerror = () => resolve(false);
+                document.body.appendChild(script);
+            });
+            const loaded = await loadScript();
+            if (!loaded) {
+                alert('Could not load payment gateway. Check your internet connection.');
+                setStep('select');
+                return;
+            }
+
+            const options = {
+                key: process.env.REACT_APP_RAZORPAY_KEY_ID,
+                amount: Math.round(data.amount * 100),
+                currency: data.currency,
+                name: 'KavachPay',
+                description: 'Weekly Premium Renewal',
+                order_id: data.order_id,
+                handler: async (response) => {
+                    await fetch(`${API_BASE}/api/payment/verify`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(response)
+                    });
+                    setTxnId(response.razorpay_payment_id || 'pay_' + Math.random().toString(36).substr(2, 10).toUpperCase());
+                    setStep('success');
+                },
+                modal: { ondismiss: () => setStep('select') },
+                prefill: { name: name },
+                theme: { color: lC.accent }
+            };
+            const rzp = new window.Razorpay(options);
+            rzp.on('payment.failed', () => setStep('select'));
+            rzp.open();
+            setStep('select');
+        } catch (e) {
+            console.error('Payment error:', e);
+            setStep('select');
+        }
     };
 
     return (
@@ -250,18 +323,18 @@ const PaymentModal = ({ premium, name, onSuccess, onClose }) => {
                         </div>
                         <div>
                             <p style={{ color: '#072654', fontWeight: 700, fontSize: 14 }}>Razorpay</p>
-                            <p style={{ color: C.textMuted, fontSize: 11 }}>Secured Payment</p>
+                            <p style={{ color: lC.textMuted, fontSize: 11 }}>Secured Payment</p>
                         </div>
                     </div>
                     {step !== 'processing' && step !== 'success' && (
-                        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.textMuted, fontSize: 20 }}>✕</button>
+                        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: lC.textMuted, fontSize: 20 }}>✕</button>
                     )}
                 </div>
 
-                <div style={{ backgroundColor: C.bg, borderRadius: 12, padding: 16, marginBottom: 20, border: `1px solid ${C.cardBorder}`, textAlign: 'center' }}>
-                    <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 4 }}>WEEKLY PREMIUM RENEWAL</p>
-                    <p style={{ color: C.text, fontWeight: 800, fontSize: 32, letterSpacing: -1 }}>₹{premium}</p>
-                    <p style={{ color: C.textMuted, fontSize: 12, marginTop: 4 }}>Policyholder: {name}</p>
+                <div style={{ backgroundColor: lC.bg, borderRadius: 12, padding: 16, marginBottom: 20, border: `1px solid ${lC.cardBorder}`, textAlign: 'center' }}>
+                    <p style={{ color: lC.textMuted, fontSize: 12, marginBottom: 4 }}>WEEKLY PREMIUM RENEWAL</p>
+                    <p style={{ color: lC.text, fontWeight: 800, fontSize: 32, letterSpacing: -1 }}>₹{premium}</p>
+                    <p style={{ color: lC.textMuted, fontSize: 12, marginTop: 4 }}>Policyholder: {name}</p>
                 </div>
 
                 {step === 'select' && (
@@ -272,66 +345,66 @@ const PaymentModal = ({ premium, name, onSuccess, onClose }) => {
                             { key: 'netbanking', label: 'Net Banking', sub: 'All major banks', icon: '🏦' },
                         ].map(m => (
                             <div key={m.key} onClick={() => setMethod(m.key)}
-                                style={{ border: `2px solid ${method === m.key ? C.accent : C.cardBorder}`, borderRadius: 12, padding: '13px 16px', marginBottom: 10, cursor: 'pointer', backgroundColor: method === m.key ? C.accentLight : 'white' }}>
+                                style={{ border: `2px solid ${method === m.key ? lC.accent : lC.cardBorder}`, borderRadius: 12, padding: '13px 16px', marginBottom: 10, cursor: 'pointer', backgroundColor: method === m.key ? lC.accentLight : (!isDark ? 'white' : lC.cardBg) }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: method === 'upi' && m.key === 'upi' ? 12 : 0 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                        <div style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{m.icon}</div>
+                                        <div style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: lC.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{m.icon}</div>
                                         <div>
-                                            <p style={{ color: C.text, fontWeight: 600, fontSize: 13 }}>{m.label}</p>
-                                            <p style={{ color: C.textMuted, fontSize: 11 }}>{m.sub}</p>
+                                            <p style={{ color: lC.text, fontWeight: 600, fontSize: 13 }}>{m.label}</p>
+                                            <p style={{ color: lC.textMuted, fontSize: 11 }}>{m.sub}</p>
                                         </div>
                                     </div>
-                                    <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${method === m.key ? C.accent : C.cardBorder}`, backgroundColor: method === m.key ? C.accent : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${method === m.key ? lC.accent : lC.cardBorder}`, backgroundColor: method === m.key ? lC.accent : (!isDark ? 'white' : lC.cardBg), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         {method === m.key && <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'white' }} />}
                                     </div>
                                 </div>
                                 {method === 'upi' && m.key === 'upi' && (
                                     <div>
                                         <input type="text" placeholder="Enter UPI ID (e.g. name@upi)" value={upiId} onChange={e => { setUpiId(e.target.value); setUpiError(''); }}
-                                            style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1.5px solid ${upiError ? C.redBorder : C.cardBorder}`, fontSize: 13, boxSizing: 'border-box', fontFamily: 'Inter, sans-serif', outline: 'none' }} />
-                                        {upiError && <p style={{ color: C.red, fontSize: 12, marginTop: 4 }}>{upiError}</p>}
+                                            style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1.5px solid ${upiError ? lC.redBorder : lC.cardBorder}`, fontSize: 13, boxSizing: 'border-box', fontFamily: 'Inter, sans-serif', outline: 'none', backgroundColor: lC.cardBg, color: lC.text }} />
+                                        {upiError && <p style={{ color: lC.red, fontSize: 12, marginTop: 4 }}>{upiError}</p>}
                                     </div>
                                 )}
                             </div>
                         ))}
                         <button onClick={handlePay}
-                            style={{ width: '100%', backgroundColor: C.navy, color: 'white', padding: 14, borderRadius: 10, border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 12 }}>
+                            style={{ width: '100%', backgroundColor: lC.navy, color: 'white', padding: 14, borderRadius: 10, border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 12 }}>
                             Pay ₹{premium}
                         </button>
-                        <p style={{ color: C.textMuted, fontSize: 11, textAlign: 'center' }}>Secured by Razorpay · 256-bit SSL</p>
+                        <p style={{ color: lC.textMuted, fontSize: 11, textAlign: 'center' }}>Secured by Razorpay · 256-bit SSL</p>
                     </div>
                 )}
 
                 {step === 'processing' && (
                     <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                        <div style={{ width: 48, height: 48, borderRadius: '50%', border: `4px solid ${C.accentLight}`, borderTop: `4px solid ${C.accent}`, margin: '0 auto 16px', animation: 'spin 1s linear infinite' }} />
-                        <p style={{ color: C.text, fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Processing Payment</p>
-                        <p style={{ color: C.textMuted, fontSize: 13 }}>Do not close this window...</p>
+                        <div style={{ width: 48, height: 48, borderRadius: '50%', border: `4px solid #EFF6FF`, borderTop: `4px solid #3395FF`, margin: '0 auto 16px', animation: 'spin 1s linear infinite' }} />
+                        <p style={{ color: '#0F172A', fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Processing Payment</p>
+                        <p style={{ color: '#64748B', fontSize: 13 }}>Do not close this window...</p>
                         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                     </div>
                 )}
 
                 {step === 'success' && (
                     <div style={{ textAlign: 'center', padding: '10px 0' }}>
-                        <div style={{ width: 60, height: 60, borderRadius: '50%', backgroundColor: C.greenLight, border: `3px solid ${C.greenBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
-                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        <div style={{ width: 60, height: 60, borderRadius: '50%', backgroundColor: '#DCFCE7', border: `3px solid #22C55E`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                         </div>
-                        <p style={{ color: C.text, fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Payment Successful</p>
-                        <p style={{ color: C.textMuted, fontSize: 13, marginBottom: 16 }}>₹{premium} paid — Policy renewed</p>
-                        <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: 14, marginBottom: 18, border: `1px solid ${C.cardBorder}`, textAlign: 'left' }}>
+                        <p style={{ color: '#0F172A', fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Payment Successful</p>
+                        <p style={{ color: '#64748B', fontSize: 13, marginBottom: 16 }}>₹{premium} paid — Policy renewed</p>
+                        <div style={{ backgroundColor: '#F8FAFC', borderRadius: 10, padding: 14, marginBottom: 18, border: `1px solid #E2E8F0`, textAlign: 'left' }}>
                             {[
                                 { label: 'Amount', value: '₹' + premium },
                                 { label: 'Method', value: method === 'upi' ? 'UPI — ' + upiId : method === 'card' ? 'Card' : 'Net Banking' },
                                 { label: 'Transaction ID', value: txnId },
                                 { label: 'Status', value: 'Success' },
                             ].map((item, i) => (
-                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: i < 3 ? `1px solid ${C.cardBorder}` : 'none' }}>
-                                    <p style={{ color: C.textMuted, fontSize: 12 }}>{item.label}</p>
-                                    <p style={{ color: item.label === 'Status' ? C.green : C.text, fontWeight: 600, fontSize: 12 }}>{item.value}</p>
+                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: i < 3 ? `1px solid #E2E8F0` : 'none' }}>
+                                    <p style={{ color: '#64748B', fontSize: 12 }}>{item.label}</p>
+                                    <p style={{ color: item.label === 'Status' ? '#16A34A' : '#0F172A', fontWeight: 600, fontSize: 12 }}>{item.value}</p>
                                 </div>
                             ))}
                         </div>
-                        <button onClick={onSuccess} style={{ width: '100%', backgroundColor: C.navy, color: 'white', padding: 13, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Done</button>
+                        <button onClick={onSuccess} style={{ width: '100%', backgroundColor: '#1A3A5C', color: 'white', padding: 13, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Done</button>
                     </div>
                 )}
             </div>
@@ -340,24 +413,69 @@ const PaymentModal = ({ premium, name, onSuccess, onClose }) => {
 };
 
 export default function Policy({ worker, onBack, lang: propLang, setLang: propSetLang }) {
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
+    const lC = isDark ? {
+        bg: '#0F172A',
+        cardBg: '#1E293B',
+        cardBorder: '#334155',
+        text: '#F8FAFC',
+        textSec: '#E2E8F0',
+        textMuted: '#94A3B8',
+        accent: '#38BDF8',
+        accentLight: '#1E293B',
+        accentBorder: '#334155',
+        greenLight: '#064E3B',
+        greenBorder: '#065F46',
+        success: '#34D399',
+        orange: '#F59E0B',
+        orangeLight: '#451A03',
+        orangeBorder: '#78350F',
+        red: '#F87171',
+        redLight: '#450A0A',
+        redBorder: '#7F1D1D',
+        navy: '#38BDF8',
+        cardShadow: 'none'
+    } : {
+        bg: '#F1F5F9',
+        cardBg: 'white',
+        cardBorder: '#E2E8F0',
+        text: '#0F172A',
+        textSec: '#475569',
+        textMuted: '#64748B',
+        accent: '#3395FF',
+        accentLight: '#EFF6FF',
+        accentBorder: '#DBEAFE',
+        greenLight: '#F0FDF4',
+        greenBorder: '#BBF7D0',
+        success: '#16A34A',
+        orange: '#D97706',
+        orangeLight: '#FFFBEB',
+        orangeBorder: '#FDE68A',
+        red: '#DC2626',
+        redLight: '#FEF2F2',
+        redBorder: '#FECACA',
+        navy: '#1A3A5C',
+        cardShadow: '0 1px 3px rgba(0,0,0,0.05)'
+    };
+
     const [lang, setLang] = useState(propLang || 'en');
     const t = T[lang] || T.en;
 
     const name = worker?.name || 'Ravi Kumar';
-    const zone = worker?.zone || 'Koramangala, Bangalore';
-    const city = worker?.city || 'Bangalore';
     const platform = worker?.platform || 'Swiggy';
     const premium = worker?.premium || 59;
     const coverage = worker?.coverage || 1200;
-    // Use snake_case keys matching what the backend/Firestore returns
     const employeeId = worker?.employee_id || 'KOR-3847261';
     const age = worker?.age || 26;
     const avgIncome = worker?.avg_income || 1800;
     const avgDeliveries = worker?.avg_deliveries || 18;
+    const phone = worker?.mobile || '9876543210';
+    const city = worker?.city || 'Bangalore';
+    const zone = worker?.zone || 'Koramangala, Bangalore';
     const policyType = worker?.policy_type || 'individual';
     const employerName = worker?.employer_name || '';
     const eshramId = worker?.eshram_id || '';
-    const phone = worker?.phone || '9876543210';
 
     const [paused, setPaused] = useState(false);
     const [showPauseConfirm, setShowPauseConfirm] = useState(false);
@@ -369,9 +487,9 @@ export default function Policy({ worker, onBack, lang: propLang, setLang: propSe
     const endDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
     const payoutTiers = [
-        { tier: t.minor, desc: t.minorDesc, pct: 30, amount: Math.round(coverage * 0.3), color: C.green, bg: C.greenLight, border: C.greenBorder },
-        { tier: t.moderate, desc: t.moderateDesc, pct: 65, amount: Math.round(coverage * 0.65), color: C.orange, bg: C.orangeLight, border: C.orangeBorder },
-        { tier: t.severe, desc: t.severeDesc, pct: 100, amount: coverage, color: C.red, bg: C.redLight, border: C.redBorder },
+        { tier: t.minor, desc: t.minorDesc, pct: 30, amount: Math.round(coverage * 0.3), color: lC.success, bg: lC.greenLight, border: lC.greenBorder },
+        { tier: t.moderate, desc: t.moderateDesc, pct: 65, amount: Math.round(coverage * 0.65), color: lC.orange, bg: lC.orangeLight, border: lC.orangeBorder },
+        { tier: t.severe, desc: t.severeDesc, pct: 100, amount: coverage, color: lC.red, bg: lC.redLight, border: lC.redBorder },
     ];
 
     const coveredItems = [
@@ -388,31 +506,31 @@ export default function Policy({ worker, onBack, lang: propLang, setLang: propSe
     ];
 
     const card = (children, mb = '12px', extra = {}) => (
-        <div style={{ backgroundColor: C.cardBg, borderRadius: 12, padding: '18px 20px', marginBottom: mb, boxShadow: C.cardShadow, border: `1px solid ${C.cardBorder}`, ...extra }}>
+        <div style={{ backgroundColor: lC.cardBg, borderRadius: 12, padding: '18px 20px', marginBottom: mb, boxShadow: lC.cardShadow, border: `1px solid ${lC.cardBorder}`, ...extra }}>
             {children}
         </div>
     );
 
     const sectionTitle = (text) => (
-        <p style={{ color: C.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{text}</p>
+        <p style={{ color: lC.text, fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{text}</p>
     );
 
     const row = (label, value, last = false) => (
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: last ? 'none' : `1px solid ${C.cardBorder}` }}>
-            <p style={{ color: C.textMuted, fontSize: 13 }}>{label}</p>
-            <p style={{ color: C.text, fontWeight: 600, fontSize: 13, textAlign: 'right', maxWidth: '55%' }}>{value}</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: last ? 'none' : `1px solid ${lC.cardBorder}` }}>
+            <p style={{ color: lC.textMuted, fontSize: 13 }}>{label}</p>
+            <p style={{ color: lC.text, fontWeight: 600, fontSize: 13, textAlign: 'right', maxWidth: '55%' }}>{value}</p>
         </div>
     );
 
     return (
-        <div style={{ backgroundColor: C.bg, minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
+        <div style={{ backgroundColor: lC.bg, minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
             {showPayment && (
                 <PaymentModal premium={premium} name={name}
                     onSuccess={() => { setShowPayment(false); setRenewed(true); }}
-                    onClose={() => setShowPayment(false)} />
+                    onClose={() => setShowPayment(false)}
+                    lC={lC} />
             )}
 
-            {/* Navbar */}
             <div style={{ background: 'linear-gradient(135deg, #08101F 0%, #0D1829 100%)', padding: '0 24px', height: 62, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <KavachLogo size={28} light />
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -422,10 +540,9 @@ export default function Policy({ worker, onBack, lang: propLang, setLang: propSe
             </div>
 
             <div style={{ padding: '20px 16px', maxWidth: 520, margin: '0 auto' }}>
-                <p style={{ color: C.text, fontSize: 20, fontWeight: 800, marginBottom: 16 }}>{t.title}</p>
+                <p style={{ color: lC.text, fontSize: 20, fontWeight: 800, marginBottom: 16 }}>{t.title}</p>
 
-                {/* Policy Card */}
-                <div style={{ backgroundColor: C.navy, borderRadius: 16, padding: 22, marginBottom: 14, color: 'white', boxShadow: '0 4px 20px rgba(26,58,92,0.2)' }}>
+                <div style={{ backgroundColor: lC.navy, borderRadius: 16, padding: 22, marginBottom: 14, color: 'white', boxShadow: '0 4px 20px rgba(26,58,92,0.2)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
                         <div>
                             <p style={{ opacity: 0.6, fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: 'white', marginBottom: 4 }}>{t.policyHolder}</p>
@@ -456,13 +573,13 @@ export default function Policy({ worker, onBack, lang: propLang, setLang: propSe
 
                 {/* Download */}
                 <button onClick={() => window.print()}
-                    style={{ width: '100%', backgroundColor: C.cardBg, color: C.navy, padding: 12, borderRadius: 8, border: `1px solid ${C.cardBorder}`, fontSize: 13, fontWeight: 700, cursor: 'pointer', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'Inter, sans-serif' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.navy} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                    style={{ width: '100%', backgroundColor: lC.cardBg, color: lC.navy, padding: 12, borderRadius: 8, border: `1px solid ${lC.cardBorder}`, fontSize: 13, fontWeight: 700, cursor: 'pointer', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'Inter, sans-serif' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={lC.navy} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
                     {t.downloadPolicy}
                 </button>
 
                 {/* Policy Details */}
-                {card(<>
+                {card(<React.Fragment>
                     {sectionTitle(t.policyDetails)}
                     {row(t.policyId, 'KVP-' + phone.slice(-6))}
                     {row(t.employeeId, employeeId)}
@@ -479,56 +596,56 @@ export default function Policy({ worker, onBack, lang: propLang, setLang: propSe
                     {row(t.validFrom, startDate)}
                     {row(t.validUntil, endDate)}
                     {row(t.renewal, t.autoRenew, true)}
-                </>)}
+                </React.Fragment>)}
 
                 {/* What's Covered */}
-                {card(<>
+                {card(<React.Fragment>
                     {sectionTitle(t.covered)}
                     {coveredItems.map((item, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '9px 12px', borderRadius: 8, marginBottom: 6, backgroundColor: C.greenLight, border: `1px solid ${C.greenBorder}` }}>
-                            <div style={{ backgroundColor: C.navy, borderRadius: 4, padding: '2px 6px', flexShrink: 0, marginTop: 1 }}>
+                        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '9px 12px', borderRadius: 8, marginBottom: 6, backgroundColor: lC.greenLight, border: `1px solid ${lC.greenBorder}` }}>
+                            <div style={{ backgroundColor: lC.navy, borderRadius: 4, padding: '2px 6px', flexShrink: 0, marginTop: 1 }}>
                                 <p style={{ color: 'white', fontSize: 9, fontWeight: 800, letterSpacing: 0.5 }}>{item.code}</p>
                             </div>
-                            <p style={{ color: C.textSec, fontSize: 13 }}>{item.label}</p>
+                            <p style={{ color: lC.textSec, fontSize: 13 }}>{item.label}</p>
                         </div>
                     ))}
-                </>)}
+                </React.Fragment>)}
 
                 {/* What's NOT Covered */}
-                {card(<>
+                {card(<React.Fragment>
                     {sectionTitle(t.notCovered)}
                     {['Vehicle damage or breakdown', 'Health issues or accidents', 'Personal reasons for not working', 'Income loss outside enrolled zone'].map((item, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 12px', borderRadius: 8, marginBottom: 6, backgroundColor: C.redLight, border: `1px solid ${C.redBorder}` }}>
-                            <div style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: C.red, flexShrink: 0 }} />
-                            <p style={{ color: C.red, fontSize: 13, fontWeight: 500 }}>{item}</p>
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 12px', borderRadius: 8, marginBottom: 6, backgroundColor: lC.redLight, border: `1px solid ${lC.redBorder}` }}>
+                            <div style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: lC.red, flexShrink: 0 }} />
+                            <p style={{ color: lC.red, fontSize: 13, fontWeight: 500 }}>{item}</p>
                         </div>
                     ))}
-                </>)}
+                </React.Fragment>)}
 
                 {/* Payout Tiers */}
-                {card(<>
+                {card(<React.Fragment>
                     {sectionTitle(t.payoutTiers)}
                     {payoutTiers.map((tier, i) => (
                         <div key={i} style={{ backgroundColor: tier.bg, borderRadius: 10, padding: '13px 16px', marginBottom: 10, border: `1px solid ${tier.border}` }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
                                 <div>
                                     <p style={{ color: tier.color, fontWeight: 700, fontSize: 13 }}>{tier.tier} Disruption</p>
-                                    <p style={{ color: C.textMuted, fontSize: 12, marginTop: 3 }}>{tier.desc}</p>
+                                    <p style={{ color: lC.textMuted, fontSize: 12, marginTop: 3 }}>{tier.desc}</p>
                                 </div>
                                 <p style={{ color: tier.color, fontWeight: 800, fontSize: 20 }}>₹{tier.amount}</p>
                             </div>
                             <div style={{ backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: 4, height: 6, overflow: 'hidden', marginTop: 8 }}>
                                 <div style={{ width: tier.pct + '%', height: '100%', backgroundColor: tier.color, borderRadius: 4 }} />
                             </div>
-                            <p style={{ color: C.textMuted, fontSize: 11, marginTop: 4 }}>{tier.pct}{t.ofCoverage}</p>
+                            <p style={{ color: lC.textMuted, fontSize: 11, marginTop: 4 }}>{tier.pct}{t.ofCoverage}</p>
                         </div>
                     ))}
-                </>)}
+                </React.Fragment>)}
 
                 {/* 5-Layer Verification */}
-                {card(<>
+                {card(<React.Fragment>
                     {sectionTitle(t.howVerified)}
-                    <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 14, marginTop: -8 }}>{t.howVerifiedSub}</p>
+                    <p style={{ color: lC.textMuted, fontSize: 12, marginBottom: 14, marginTop: -8 }}>{t.howVerifiedSub}</p>
                     {[
                         { label: 'Work Intent', desc: 'Did you tap Start My Day before the disruption?' },
                         { label: 'Disruption Trigger', desc: 'Did IMD/CPCB/NDMA confirm the event in your zone?' },
@@ -537,74 +654,73 @@ export default function Policy({ worker, onBack, lang: propLang, setLang: propSe
                         { label: 'KavachScore', desc: 'Is your behavioral trust score above 300?' },
                     ].map((item, i) => (
                         <div key={i} style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'flex-start' }}>
-                            <div style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: C.navy, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11, flexShrink: 0 }}>{i + 1}</div>
+                            <div style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: lC.navy, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11, flexShrink: 0 }}>{i + 1}</div>
                             <div>
-                                <p style={{ color: C.text, fontWeight: 600, fontSize: 13 }}>{item.label}</p>
-                                <p style={{ color: C.textMuted, fontSize: 12, marginTop: 2 }}>{item.desc}</p>
+                                <p style={{ color: lC.text, fontWeight: 600, fontSize: 13 }}>{item.label}</p>
+                                <p style={{ color: lC.textMuted, fontSize: 12, marginTop: 2 }}>{item.desc}</p>
                             </div>
                         </div>
                     ))}
-                </>)}
+                </React.Fragment>)}
 
                 {/* Pause */}
-                {card(<>
+                {card(<React.Fragment>
                     {sectionTitle(t.pauseTitle)}
-                    <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 14, marginTop: -8 }}>{t.pauseSub}</p>
+                    <p style={{ color: lC.textMuted, fontSize: 12, marginBottom: 14, marginTop: -8 }}>{t.pauseSub}</p>
                     {paused ? (
                         <div>
-                            <div style={{ backgroundColor: C.orangeLight, border: `1px solid ${C.orangeBorder}`, borderRadius: 8, padding: '11px 14px', marginBottom: 12 }}>
-                                <p style={{ color: C.orange, fontWeight: 600, fontSize: 13 }}>{t.pauseActive}</p>
-                                <p style={{ color: C.orange, fontSize: 12, marginTop: 4 }}>{t.pauseActiveSub}</p>
+                            <div style={{ backgroundColor: lC.orangeLight, border: `1px solid ${lC.orangeBorder}`, borderRadius: 8, padding: '11px 14px', marginBottom: 12 }}>
+                                <p style={{ color: lC.orange, fontWeight: 600, fontSize: 13 }}>{t.pauseActive}</p>
+                                <p style={{ color: lC.orange, fontSize: 12, marginTop: 4 }}>{t.pauseActiveSub}</p>
                             </div>
                             <button onClick={async () => { await api.resumePolicy(worker?.uid); setPaused(false); }}
-                                style={{ width: '100%', backgroundColor: C.green, color: 'white', padding: 12, borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t.resume}</button>
+                                style={{ width: '100%', backgroundColor: lC.success, color: 'white', padding: 12, borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t.resume}</button>
                         </div>
                     ) : showPauseConfirm ? (
                         <div>
-                            <div style={{ backgroundColor: C.orangeLight, border: `1px solid ${C.orangeBorder}`, borderRadius: 8, padding: '11px 14px', marginBottom: 12 }}>
-                                <p style={{ color: C.orange, fontWeight: 600, fontSize: 13 }}>{t.pauseConfirm}</p>
-                                <p style={{ color: C.orange, fontSize: 12, marginTop: 4 }}>{t.pauseConfirmSub}</p>
+                            <div style={{ backgroundColor: lC.orangeLight, border: `1px solid ${lC.orangeBorder}`, borderRadius: 8, padding: '11px 14px', marginBottom: 12 }}>
+                                <p style={{ color: lC.orange, fontWeight: 600, fontSize: 13 }}>{t.pauseConfirm}</p>
+                                <p style={{ color: lC.orange, fontSize: 12, marginTop: 4 }}>{t.pauseConfirmSub}</p>
                             </div>
                             <div style={{ display: 'flex', gap: 10 }}>
                                 <button onClick={async () => { await api.pausePolicy(worker?.uid); setPaused(true); setShowPauseConfirm(false); }}
-                                    style={{ flex: 1, backgroundColor: C.orange, color: 'white', padding: 12, borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t.yesPause}</button>
+                                    style={{ flex: 1, backgroundColor: lC.orange, color: 'white', padding: 12, borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t.yesPause}</button>
                                 <button onClick={() => setShowPauseConfirm(false)}
-                                    style={{ flex: 1, backgroundColor: C.cardBg, color: C.navy, padding: 12, borderRadius: 8, border: `1px solid ${C.cardBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t.cancel}</button>
+                                    style={{ flex: 1, backgroundColor: lC.cardBg, color: lC.navy, padding: 12, borderRadius: 8, border: `1px solid ${lC.cardBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t.cancel}</button>
                             </div>
                         </div>
                     ) : (
                         <button onClick={() => setShowPauseConfirm(true)}
-                            style={{ width: '100%', backgroundColor: C.orangeLight, color: C.orange, padding: 12, borderRadius: 8, border: `1px solid ${C.orangeBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t.pauseBtn}</button>
+                            style={{ width: '100%', backgroundColor: lC.orangeLight, color: lC.orange, padding: 12, borderRadius: 8, border: `1px solid ${lC.orangeBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t.pauseBtn}</button>
                     )}
-                </>)}
+                </React.Fragment>)}
 
                 {/* Renewal */}
                 {policyType === 'employer' ? (
-                    <div style={{ backgroundColor: C.greenLight, borderRadius: 12, padding: 18, textAlign: 'center', marginBottom: 14, border: `1px solid ${C.greenBorder}` }}>
-                        <p style={{ color: C.green, fontWeight: 700, fontSize: 14 }}>{t.employerRenewal}</p>
-                        <p style={{ color: C.textMuted, fontSize: 13, marginTop: 6 }}>{t.employerRenewalSub}</p>
+                    <div style={{ backgroundColor: lC.greenLight, borderRadius: 12, padding: 18, textAlign: 'center', marginBottom: 14, border: `1px solid ${lC.greenBorder}` }}>
+                        <p style={{ color: lC.success, fontWeight: 700, fontSize: 14 }}>{t.employerRenewal}</p>
+                        <p style={{ color: lC.textMuted, fontSize: 13, marginTop: 6 }}>{t.employerRenewalSub}</p>
                     </div>
                 ) : renewed ? (
-                    <div style={{ backgroundColor: C.greenLight, border: `1px solid ${C.greenBorder}`, borderRadius: 12, padding: 18, textAlign: 'center', marginBottom: 14 }}>
-                        <p style={{ color: C.green, fontWeight: 700, fontSize: 14 }}>{t.renewedMsg}</p>
-                        <p style={{ color: C.textMuted, fontSize: 13, marginTop: 6 }}>{t.renewedSub}</p>
+                    <div style={{ backgroundColor: lC.greenLight, border: `1px solid ${lC.greenBorder}`, borderRadius: 12, padding: 18, textAlign: 'center', marginBottom: 14 }}>
+                        <p style={{ color: lC.success, fontWeight: 700, fontSize: 14 }}>{t.renewedMsg}</p>
+                        <p style={{ color: lC.textMuted, fontSize: 13, marginTop: 6 }}>{t.renewedSub}</p>
                     </div>
                 ) : (
-                    card(<>
+                    card(<React.Fragment>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                            <p style={{ color: C.text, fontWeight: 700, fontSize: 14 }}>{t.renewAmount}</p>
-                            <p style={{ color: C.navy, fontWeight: 800, fontSize: 20 }}>₹{premium}</p>
+                            <p style={{ color: lC.text, fontWeight: 700, fontSize: 14 }}>{t.renewAmount}</p>
+                            <p style={{ color: lC.navy, fontWeight: 800, fontSize: 20 }}>₹{premium}</p>
                         </div>
                         <button onClick={() => setShowPayment(true)}
-                            style={{ width: '100%', backgroundColor: C.navy, color: 'white', padding: 13, borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: 10 }}>
+                            style={{ width: '100%', backgroundColor: lC.navy, color: 'white', padding: 13, borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: 10 }}>
                             {t.renewBtn} — ₹{premium}
                         </button>
-                        <p style={{ color: C.textMuted, fontSize: 11, textAlign: 'center' }}>{t.secured}</p>
-                    </>)
+                        <p style={{ color: lC.textMuted, fontSize: 11, textAlign: 'center' }}>{t.secured}</p>
+                    </React.Fragment>))
                 )}
-
                 <button onClick={onBack}
-                    style={{ width: '100%', backgroundColor: C.cardBg, color: C.navy, padding: 13, borderRadius: 8, border: `1px solid ${C.cardBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>
+                    style={{ width: '100%', backgroundColor: lC.cardBg, color: lC.navy, padding: 13, borderRadius: 8, border: `1px solid ${lC.cardBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>
                     {t.backDashboard}
                 </button>
             </div>

@@ -147,12 +147,14 @@ const T = {
 };
 
 const WHY_ITEMS = [
-  { number: '01', title: 'Zero-Touch Payouts', desc: 'No claim forms. No calls. No waiting. Our parametric engine detects disruptions via government APIs and triggers payouts the moment a qualifying event occurs in your zone.' },
-  { number: '02', title: 'Built on Real Government Data', desc: 'We integrate with IMD, NDMA, CPCB, and municipal APIs — not manual reports. Your payout is driven by verified, real-time data, not subjective assessments.' },
-  { number: '03', title: 'UPI in Under 2 Minutes', desc: 'Once a trigger fires, our settlement engine initiates a direct UPI transfer. Average time from event detection to credit: under 2 minutes for Trusted Workers.' },
-  { number: '04', title: 'Hyper-Local Precision', desc: 'Coverage is zone-specific — not city-level. A disruption in Koramangala does not affect a worker in Whitefield. You are covered exactly where you work.' },
-  { number: '05', title: '15 Covered Event Types', desc: 'Rain (HRA/MRA/LRA), Storm, Flood, Curfew, Air Quality (SAQ/MAQ), Fog, Wind, Earthquake, Landslide, Heatwave, Pandemic (PND), and War (WAR) — all automatically detected and paid.' },
-  { number: '06', title: 'Designed for Bharat', desc: 'UPI-first. Works on any phone. Built specifically for the realities of India\'s 50 million gig delivery workers across 20 cities.' },
+  { icon: '⚡', number: '01', title: 'Zero-Touch Payouts', desc: 'No claim forms. No calls. No waiting. Our parametric engine detects disruptions via government APIs and triggers payouts the moment a qualifying event occurs in your zone.' },
+  { icon: '🏛️', number: '02', title: 'Built on Real Government Data', desc: 'We integrate with IMD, NDMA, CPCB, and municipal APIs — not manual reports. Your payout is driven by verified, real-time data, not subjective assessments.' },
+  { icon: '💸', number: '03', title: 'UPI in Under 2 Minutes', desc: 'Once a trigger fires, our settlement engine initiates a direct UPI transfer. Average time from event detection to credit: under 2 minutes for Trusted Workers.' },
+  { icon: '📍', number: '04', title: 'Hyper-Local Zone Precision', desc: 'Coverage is zone-specific — not city-level. A disruption in Koramangala does not affect a worker in Whitefield. You are covered exactly where you work.' },
+  { icon: '🛡️', number: '05', title: '15 Covered Event Types', desc: 'Rain (HRA/MRA/LRA), Storm, Flood, Curfew, Air Quality (SAQ/MAQ), Fog, Wind, Earthquake, Landslide, Heatwave, Pandemic (PND), and War (WAR) — all automatically detected and paid.' },
+  { icon: '🇮🇳', number: '06', title: 'Designed for Bharat', desc: 'UPI-first. Works on any phone. Built specifically for the realities of India\'s 50 million gig delivery workers across 20+ cities — no smartphones or bank accounts required.' },
+  { icon: '🤖', number: '07', title: '6-Model AI Risk Engine', desc: 'Our proprietary ML stack — Premium Predictor (M1), Fraud Detector (M2), Income Loss Estimator (M3), Churn Predictor (M5), Zone Clusterer (M6) and Claim Triage (M7) — ensures fair, automated decisions at every step.' },
+  { icon: '📊', number: '08', title: 'KavachScore Trust System', desc: 'Your behavioral trust score (0–1000) updates with every legitimate claim and consistent activity. Higher scores unlock faster payouts, lower premiums, and priority processing.' },
 ];
 
 const ALL_DISRUPTIONS = [
@@ -539,16 +541,14 @@ function LandingPage({ onNavigate }) {
             <h2 style={{ fontSize: 36, fontWeight: 900, color: C.text, letterSpacing: -0.8, lineHeight: 1.1, marginBottom: 16 }}>{t.whyTitle}</h2>
             <p style={{ fontSize: 15, color: C.textMuted, lineHeight: 1.85 }}>{t.whySub}</p>
           </div>
-
-          {/* 3x2 Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden' }}>
             {WHY_ITEMS.map((item, i) => (
-              <div key={i} style={{ padding: '36px 32px', background: C.bg, borderRight: (i + 1) % 3 !== 0 ? `1px solid ${C.border}` : 'none', borderBottom: i < 3 ? `1px solid ${C.border}` : 'none', transition: 'background 0.2s' }}
+              <div key={i} style={{ padding: '28px 24px', background: C.bg, borderRight: (i + 1) % 4 !== 0 ? `1px solid ${C.border}` : 'none', borderBottom: i < 4 ? `1px solid ${C.border}` : 'none', transition: 'background 0.2s' }}
                 onMouseEnter={e => e.currentTarget.style.background = C.bgSubtle}
                 onMouseLeave={e => e.currentTarget.style.background = C.bg}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: C.accent, letterSpacing: 2, marginBottom: 16 }}>{item.number}</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 10, letterSpacing: -0.3, lineHeight: 1.3 }}>{item.title}</div>
-                <div style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.8 }}>{item.desc}</div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: C.accent, letterSpacing: 2, marginBottom: 8 }}>{item.number}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 8, letterSpacing: -0.3, lineHeight: 1.3 }}>{item.title}</div>
+                <div style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.8 }}>{item.desc}</div>
               </div>
             ))}
           </div>
@@ -598,8 +598,8 @@ function LandingPage({ onNavigate }) {
             ))}
           </div>
           <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
-            <div style={{ padding: '6px 14px', background: C.successLight, border: `1px solid #A7F3D0`, borderRadius: 6, fontSize: 11, fontWeight: 600, color: C.success }}>All verified via IMD</div>
-            <div style={{ padding: '6px 14px', background: C.accentLight, border: `1px solid #BFDBFE`, borderRadius: 6, fontSize: 11, fontWeight: 600, color: C.accent }}>CPCB for Air Quality</div>
+            <div style={{ padding: '6px 14px', background: C.successLight, border: '1px solid #A7F3D0', borderRadius: 6, fontSize: 11, fontWeight: 600, color: C.success }}>All verified via IMD</div>
+            <div style={{ padding: '6px 14px', background: C.accentLight, border: '1px solid #BFDBFE', borderRadius: 6, fontSize: 11, fontWeight: 600, color: C.accent }}>CPCB for Air Quality</div>
             <div style={{ padding: '6px 14px', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 6, fontSize: 11, fontWeight: 600, color: '#C2410C' }}>NDMA for Disasters</div>
           </div>
         </div>
@@ -646,18 +646,46 @@ function LandingPage({ onNavigate }) {
 
       {/* ── ABOUT ── */}
       <section id="about" style={{ padding: '96px 48px', background: C.bg, borderTop: `1px solid ${C.border}` }}>
-        <div style={{ maxWidth: 760, margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ maxWidth: 960, margin: '0 auto', textAlign: 'center' }}>
           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: C.accent, textTransform: 'uppercase', marginBottom: 12 }}>{t.aboutLabel}</p>
           <h2 style={{ fontSize: 32, fontWeight: 900, color: C.text, letterSpacing: -0.6, marginBottom: 16, lineHeight: 1.2 }}>{t.aboutTitle}</h2>
-          <p style={{ fontSize: 15, color: C.textMuted, lineHeight: 1.9, maxWidth: 600, margin: '0 auto 52px' }}>{t.aboutSub}</p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 56, flexWrap: 'wrap', marginBottom: 44 }}>
+          <p style={{ fontSize: 15, color: C.textMuted, lineHeight: 1.9, maxWidth: 640, margin: '0 auto 40px' }}>{t.aboutSub}</p>
+
+          {/* Mission Stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 52 }}>
+            {[
+              { val: '50M+', label: 'Gig Workers in India', color: C.accent },
+              { val: '15', label: 'Event Types Covered', color: '#8B5CF6' },
+              { val: '20+', label: 'Cities Active', color: C.success },
+              { val: '< 2 min', label: 'Avg. Payout Time', color: '#F97316' },
+            ].map((s, i) => (
+              <div key={i} style={{ background: C.bgSubtle, border: `1px solid ${C.border}`, borderRadius: 12, padding: '18px 16px' }}>
+                <div style={{ fontSize: 24, fontWeight: 900, color: s.color, letterSpacing: -1 }}>{s.val}</div>
+                <div style={{ fontSize: 11, color: C.textMuted, marginTop: 4, lineHeight: 1.4 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Team */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 48, flexWrap: 'wrap', marginBottom: 36 }}>
             <TeamCard name="Ankith" initial="A" role="Frontend Developer" />
             <TeamCard name="Ashwin" initial="A" role="Backend Developer" />
             <TeamCard name="Madhav" initial="M" role="AI / ML Engineer" />
             <TeamCard name="Kirithic" initial="K" role="Team Leader" />
           </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: C.bgMuted, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 20px', fontSize: 12, color: C.textMuted }}>
-            2nd Year · B.Tech · Shiv Nadar University, Chennai
+
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: C.bgMuted, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 20px', fontSize: 12, color: C.textMuted, marginBottom: 28 }}>
+            2nd Year &middot; B.Tech &middot; Shiv Nadar University, Chennai
+          </div>
+
+          {/* Tech Stack */}
+          <div>
+            <p style={{ fontSize: 11, color: C.textLight, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>Built with</p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+              {['React', 'Python Flask', 'Firebase', 'scikit-learn', 'XGBoost', 'Razorpay', 'IMD APIs', 'NDMA APIs'].map(tech => (
+                <div key={tech} style={{ padding: '5px 12px', background: C.accentLight, border: '1px solid #BFDBFE', borderRadius: 6, fontSize: 11, fontWeight: 600, color: C.accent }}>{tech}</div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
