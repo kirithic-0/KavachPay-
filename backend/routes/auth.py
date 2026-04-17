@@ -234,3 +234,22 @@ def admin_login():
         
     return jsonify({"success": True, "admin": doc.to_dict()}), 200
 
+@auth_bp.route('/connect-platform', methods=['POST'])
+def connect_platform():
+    # POST /auth/connect-platform: proxies connection to the mock platform API
+    data = request.get_json()
+    phone = data.get("phone", "").strip()
+    employee_id = data.get("employee_id", "").strip()
+    
+    if not phone or not employee_id:
+        return jsonify({"success": False, "error": "Missing phone or employee_id"}), 400
+        
+    result = verify_with_platform(phone, employee_id)
+    
+    # We will pass back exactly what verify_with_platform returned
+    result["success"] = result.get("verified", False)
+    # If not verified, make sure there's an error message
+    if not result["success"] and "error" not in result:
+        result["error"] = "Verification failed"
+        
+    return jsonify(result), 200 if result["success"] else 400

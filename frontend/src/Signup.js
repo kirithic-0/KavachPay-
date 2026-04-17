@@ -34,9 +34,8 @@ const api = {
         } catch (e) { return { success: true }; }
     },
     connectPlatform: async (employeeId, phone, platform) => {
-        const MOCK_API = process.env.REACT_APP_MOCK_API_URL || 'http://localhost:5001';
         try {
-            return await fetch(`${MOCK_API}/mock/platform/connect`, {
+            return await fetch(`${API_BASE}/api/auth/connect-platform`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ employee_id: employeeId, phone, platform })
