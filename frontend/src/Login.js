@@ -117,8 +117,9 @@ export default function Login({ onLogin, onBack, onSignup }) {
     };
 
     const DEMO_ACCOUNTS = [
-        { name: 'Ravi Kumar', email: 'ravi@kavachpay.in', password: 'password123', zone: 'Koramangala' },
-        { name: 'Priya Singh', email: 'priya@kavachpay.in', password: 'password123', zone: 'Adyar' }
+        { name: 'Ravi Kumar', email: 'ravi@kavachpay.in', password: 'ravi123', zone: 'Koramangala' },
+        { name: 'Priya Singh', email: 'priya@kavachpay.in', password: 'priya123', zone: 'Adyar' },
+        { name: 'Mohammed Arif', email: 'mohammed@kavachpay.in', password: 'mohammed123', zone: 'Dharavi' }
         ];
 
     return (

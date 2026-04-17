@@ -223,7 +223,7 @@ const LangToggle = ({ lang, setLang }) => (
     </div>
 );
 
-const PaymentModal = ({ premium, name, onSuccess, onClose, lC }) => {
+const PaymentModal = ({ premium, name, onSuccess, onClose, lC, isDark }) => {
     const [step, setStep] = useState('select');
     const [method, setMethod] = useState('upi');
     const [upiId, setUpiId] = useState('');
@@ -528,7 +528,8 @@ export default function Policy({ worker, onBack, lang: propLang, setLang: propSe
                 <PaymentModal premium={premium} name={name}
                     onSuccess={() => { setShowPayment(false); setRenewed(true); }}
                     onClose={() => setShowPayment(false)}
-                    lC={lC} />
+                    lC={lC}
+                    isDark={isDark} />
             )}
 
             <div style={{ background: 'linear-gradient(135deg, #08101F 0%, #0D1829 100%)', padding: '0 24px', height: 62, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -718,7 +719,7 @@ export default function Policy({ worker, onBack, lang: propLang, setLang: propSe
                         </button>
                         <p style={{ color: lC.textMuted, fontSize: 11, textAlign: 'center' }}>{t.secured}</p>
                     </React.Fragment>))
-                )}
+                }
                 <button onClick={onBack}
                     style={{ width: '100%', backgroundColor: lC.cardBg, color: lC.navy, padding: 13, borderRadius: 8, border: `1px solid ${lC.cardBorder}`, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>
                     {t.backDashboard}
