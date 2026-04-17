@@ -499,6 +499,7 @@ export default function Signup({ onComplete, onBack, lang: propLang, setLang: pr
     const [showConfirm, setShowConfirm] = useState(false);
     const [errors, setErrors] = useState({});
     const [showPayment, setShowPayment] = useState(false);
+    const [registering, setRegistering] = useState(false);
     const [customPremium, setCustomPremium] = useState(null);
     const [referralValid, setReferralValid] = useState(false);
     const [uniqueChecking, setUniqueChecking] = useState({});
@@ -613,25 +614,73 @@ export default function Signup({ onComplete, onBack, lang: propLang, setLang: pr
         return Object.keys(e).length === 0;
     };
 
-    const handlePaymentSuccess = () => {
+    const handlePaymentSuccess = async () => {
         setShowPayment(false);
+        setRegistering(true);
         const referralCode = generateReferralCode(form.name);
+
+        // Call the backend to create the Firebase Auth + Firestore document
+        let uid = null;
+        try {
+            const result = await api.register({
+                name:        form.name,
+                email:       form.email,
+                password:    form.password,
+                phone:       form.phone,
+                age:         form.age,
+                aadhaar:     form.aadhaar,
+                employee_id: form.employeeId,
+                eshram_id:   form.eshramId || '',
+                city:        form.city,
+                zone:        form.zone,
+                platform:    form.platform,
+                premium:     activePremium,
+                coverage,
+                policy_type:    policyType,
+                employer_name:  form.employerName || '',
+                employer_email: form.employerEmail || '',
+                referral_code:  referralValid ? form.referralCode : '',
+                avg_income:     linkedData?.avgIncome || basePremium * 30,
+                avg_deliveries: linkedData?.avgDeliveries || 18,
+            });
+            if (result?.success && result?.worker_id) {
+                uid = result.worker_id;
+                // Store token for Dashboard API calls
+                localStorage.setItem('token', uid);
+            }
+        } catch (e) {
+            console.error('Registration error:', e);
+        }
+        setRegistering(false);
+
         onComplete({
-            name: form.name, phone: form.phone, age: form.age,
-            email: form.email, city: form.city,
-            zone: form.zone + ', ' + form.city,
-            platform: form.platform, employeeId: form.employeeId,
-            aadhaar: form.aadhaar, password: form.password,
-            premium: activePremium, coverage,
-            avgIncome: linkedData?.avgIncome || basePremium * 30,
-            avgDeliveries: linkedData?.avgDeliveries || 18,
-            policyType, employerName: form.employerName,
-            employerEmail: form.employerEmail,
-            eshramId: form.eshramId, referralCode,
-            usedReferral: referralValid ? form.referralCode : null,
-            referralDiscount: referralValid,
+            uid,
+            name:       form.name,
+            phone:      form.phone,
+            age:        form.age,
+            email:      form.email,
+            city:       form.city,
+            zone:       form.zone + ', ' + form.city,
+            platform:   form.platform,
+            employee_id: form.employeeId,
+            aadhaar_last4: form.aadhaar.slice(-4),
+            premium:    activePremium,
+            coverage,
+            avg_income:     linkedData?.avgIncome || basePremium * 30,
+            avg_deliveries: linkedData?.avgDeliveries || 18,
+            policy_active: true,
+            policy_paused: false,
+            kavach_score: 750,
+            policy_type:  policyType,
+            employer_name:  form.employerName,
+            employer_email: form.employerEmail,
+            eshram_id:      form.eshramId,
+            referral_code:  referralCode,
+            used_referral:  referralValid ? form.referralCode : null,
+            referral_discount: referralValid,
         });
     };
+
 
     const iStyle = (field) => ({
         width: '100%', padding: '12px 14px', borderRadius: '10px',
@@ -647,6 +696,15 @@ export default function Signup({ onComplete, onBack, lang: propLang, setLang: pr
 
     return (
         <div style={{ backgroundColor: bg, minHeight: '100vh', fontFamily: 'Inter' }}>
+            {/* Registering overlay — shown while backend call runs after payment */}
+            {registering && (
+                <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 3000, fontFamily: 'Inter' }}>
+                    <div style={{ width: 60, height: 60, borderRadius: '50%', border: '4px solid rgba(255,255,255,0.2)', borderTop: '4px solid white', marginBottom: 20, animation: 'spin 1s linear infinite' }} />
+                    <p style={{ color: 'white', fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Setting up your account...</p>
+                    <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13 }}>This takes just a moment</p>
+                    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                </div>
+            )}
             {showPayment && (
                 <PaymentModal premium={activePremium} name={form.name} discountApplied={referralValid}
                     onSuccess={handlePaymentSuccess} onClose={() => setShowPayment(false)} />

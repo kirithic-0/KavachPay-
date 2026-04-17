@@ -40,7 +40,7 @@ def require_admin(f):
 def admin_overview():
     workers = list(db.collection('workers').where('is_deleted', '==', False).stream())
     total_enrolled = len(workers)
-    total_premiums = sum(w.to_dict().get('premium', 0) for w in workers) + 40000
+    total_premiums = sum(w.to_dict().get('premium', 0) for w in workers)
     scores = [w.to_dict().get('kavach_score', 750) for w in workers]
     avg_score = round(sum(scores) / len(scores)) if scores else 750
 

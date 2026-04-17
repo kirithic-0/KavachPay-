@@ -372,10 +372,16 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
 
     useEffect(() => {
         const loadEverything = async () => {
-            if (!worker?.uid) return;
+            // If no uid yet (e.g. freshly registered worker — uid may still be null),
+            // render immediately with the data already in the worker prop.
+            if (!worker?.uid) {
+                setLoading(false);
+                return;
+            }
             const token = localStorage.getItem('token');
             if (!token) {
                 console.error("No auth token found in localStorage");
+                setLoading(false);
                 return;
             }
             try {

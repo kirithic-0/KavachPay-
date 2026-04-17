@@ -44,7 +44,7 @@ CITY_CODES = {
 # referral_code= firstname + numeric part of customer_id
 # ─────────────────────────────────────────────────────────────
 MOCK_WORKERS = {
-    # Swiggy workers
+    # ── Existing KavachPay-registered workers ─────────────────────────────────
     "SWG-2847361": {
         "customer_id":   "SWG-2847361",
         "employee_id":   "BLR-1000001",
@@ -84,7 +84,6 @@ MOCK_WORKERS = {
         "joined_date":   "2024-07-22",
         "active":        True,
     },
-    # Zomato workers
     "ZMT-1928374": {
         "customer_id":   "ZMT-1928374",
         "employee_id":   "CHN-2000001",
@@ -150,6 +149,92 @@ MOCK_WORKERS = {
         "joined_date":   "2024-02-14",
         "active":        True,
     },
+
+    # ── GET-STARTED DEMO WORKERS ──────────────────────────────────────────────
+    # These 5 workers exist on the delivery platform but have NOT yet signed up
+    # for KavachPay. Use them to demonstrate the full 'Get Started' onboarding
+    # flow. Employee ID + Phone must be entered exactly as shown below.
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # Demo 1 — Swiggy / Bangalore / Whitefield
+    # Employee ID : BLR-9910001   Phone: 9700011001
+    "SWG-9910001": {
+        "customer_id":   "SWG-9910001",
+        "employee_id":   "BLR-9910001",
+        "name":          "Arjun Mehta",
+        "phone":         "9700011001",
+        "email":         "arjun.mehta@swiggy.internal",
+        "platform":      "Swiggy",
+        "city":          "Bangalore",
+        "zone":          "Whitefield",
+        "referral_code": "Arjun-9910001",
+        "joined_date":   "2025-08-12",
+        "active":        True,
+    },
+
+    # Demo 2 — Zomato / Mumbai / Andheri
+    # Employee ID : MUM-9920002   Phone: 9700022002
+    "ZMT-9920002": {
+        "customer_id":   "ZMT-9920002",
+        "employee_id":   "MUM-9920002",
+        "name":          "Fatima Shaikh",
+        "phone":         "9700022002",
+        "email":         "fatima.shaikh@zomato.internal",
+        "platform":      "Zomato",
+        "city":          "Mumbai",
+        "zone":          "Andheri",
+        "referral_code": "Fatima-9920002",
+        "joined_date":   "2025-09-03",
+        "active":        True,
+    },
+
+    # Demo 3 — Swiggy / Hyderabad / Madhapur
+    # Employee ID : HYD-9930003   Phone: 9700033003
+    "SWG-9930003": {
+        "customer_id":   "SWG-9930003",
+        "employee_id":   "HYD-9930003",
+        "name":          "Vikram Reddy",
+        "phone":         "9700033003",
+        "email":         "vikram.reddy@swiggy.internal",
+        "platform":      "Swiggy",
+        "city":          "Hyderabad",
+        "zone":          "Madhapur",
+        "referral_code": "Vikram-9930003",
+        "joined_date":   "2025-10-18",
+        "active":        True,
+    },
+
+    # Demo 4 — Zomato / Delhi / Lajpat Nagar
+    # Employee ID : DEL-9940004   Phone: 9700044004
+    "ZMT-9940004": {
+        "customer_id":   "ZMT-9940004",
+        "employee_id":   "DEL-9940004",
+        "name":          "Nisha Gupta",
+        "phone":         "9700044004",
+        "email":         "nisha.gupta@zomato.internal",
+        "platform":      "Zomato",
+        "city":          "Delhi",
+        "zone":          "Lajpat Nagar",
+        "referral_code": "Nisha-9940004",
+        "joined_date":   "2025-11-07",
+        "active":        True,
+    },
+
+    # Demo 5 — Swiggy / Pune / Koregaon Park
+    # Employee ID : PNE-9950005   Phone: 9700055005
+    "SWG-9950005": {
+        "customer_id":   "SWG-9950005",
+        "employee_id":   "PNE-9950005",
+        "name":          "Rohan Deshmukh",
+        "phone":         "9700055005",
+        "email":         "rohan.deshmukh@swiggy.internal",
+        "platform":      "Swiggy",
+        "city":          "Pune",
+        "zone":          "Koregaon Park",
+        "referral_code": "Rohan-9950005",
+        "joined_date":   "2025-12-01",
+        "active":        True,
+    },
 }
 
 # Build reverse lookup: employee_id → customer_id
@@ -159,29 +244,56 @@ EMPLOYEE_TO_CUSTOMER = {v["employee_id"]: k for k, v in MOCK_WORKERS.items()}
 # ZONE COORDINATES — for distance calculation
 # ─────────────────────────────────────────────────────────────
 ZONE_COORDS = {
-    "Koramangala":  (12.9352, 77.6245),
-    "Adyar":        (13.0067, 80.2571),
-    "Dharavi":      (19.0390, 72.8527),
-    "Salt Lake":    (22.5726, 88.4319),
-    "HSR Layout":   (12.9116, 77.6389),
-    "Anna Nagar":   (13.0850, 80.2101),
-    "Bandra":       (19.0596, 72.8295),
-    "Whitefield":   (12.9698, 77.7499),
-    "T Nagar":      (13.0418, 80.2341),
-    "Indiranagar":  (12.9784, 77.6408),
-    "Powai":        (19.1176, 72.9060),
-    "Andheri":      (19.1136, 72.8697),
-    "Nungambakkam": (13.0569, 80.2425),
-    "Velachery":    (12.9815, 80.2180),
-    "Garia":        (22.4627, 88.3950),
-    "Dum Dum":      (22.6500, 88.4200),
+    # Bangalore
+    "Koramangala":     (12.9352, 77.6245),
+    "HSR Layout":      (12.9116, 77.6389),
+    "Whitefield":      (12.9698, 77.7499),
+    "Indiranagar":     (12.9784, 77.6408),
+    "Marathahalli":    (12.9591, 77.7010),
+    # Chennai
+    "Adyar":           (13.0067, 80.2571),
+    "Anna Nagar":      (13.0850, 80.2101),
+    "T Nagar":         (13.0418, 80.2341),
+    "Nungambakkam":    (13.0569, 80.2425),
+    "Velachery":       (12.9815, 80.2180),
+    # Mumbai
+    "Dharavi":         (19.0390, 72.8527),
+    "Bandra":          (19.0596, 72.8295),
+    "Powai":           (19.1176, 72.9060),
+    "Andheri":         (19.1136, 72.8697),
+    "Kurla":           (19.0726, 72.8826),
+    # Kolkata
+    "Salt Lake":       (22.5726, 88.4319),
+    "Garia":           (22.4627, 88.3950),
+    "Dum Dum":         (22.6500, 88.4200),
+    # Hyderabad
+    "Madhapur":        (17.4400, 78.3800),
+    "Banjara Hills":   (17.4156, 78.4347),
+    "Jubilee Hills":   (17.4239, 78.4051),
+    "Gachibowli":      (17.4401, 78.3489),
+    "Kukatpally":      (17.4849, 78.3996),
+    # Delhi
+    "Connaught Place": (28.6315, 77.2167),
+    "Lajpat Nagar":    (28.5672, 77.2432),
+    "Dwarka":          (28.5921, 77.0460),
+    "Rohini":          (28.7384, 77.1170),
+    "Saket":           (28.5244, 77.2066),
+    # Pune
+    "Koregaon Park":   (18.5362, 73.8947),
+    "Kothrud":         (18.5074, 73.8077),
+    "Viman Nagar":     (18.5679, 73.9143),
+    "Hadapsar":        (18.5018, 73.9260),
+    "Wakad":           (18.5985, 73.7614),
 }
 
 ZONES_BY_CITY = {
-    "Bangalore": ["Koramangala", "HSR Layout", "Whitefield", "Indiranagar"],
-    "Chennai":   ["Adyar", "Anna Nagar", "T Nagar", "Nungambakkam", "Velachery"],
-    "Mumbai":    ["Dharavi", "Bandra", "Powai", "Andheri"],
-    "Kolkata":   ["Salt Lake", "Garia", "Dum Dum"],
+    "Bangalore":  ["Koramangala", "HSR Layout", "Whitefield", "Indiranagar", "Marathahalli"],
+    "Chennai":    ["Adyar", "Anna Nagar", "T Nagar", "Nungambakkam", "Velachery"],
+    "Mumbai":     ["Dharavi", "Bandra", "Powai", "Andheri", "Kurla"],
+    "Kolkata":    ["Salt Lake", "Garia", "Dum Dum"],
+    "Hyderabad":  ["Madhapur", "Banjara Hills", "Jubilee Hills", "Gachibowli", "Kukatpally"],
+    "Delhi":      ["Connaught Place", "Lajpat Nagar", "Dwarka", "Rohini", "Saket"],
+    "Pune":       ["Koregaon Park", "Kothrud", "Viman Nagar", "Hadapsar", "Wakad"],
 }
 
 
@@ -516,8 +628,14 @@ def get_worker_stats(employee_id):
 
 
 if __name__ == "__main__":
-    print("=" * 50)
-    print("  KavachPay Mock Platform API")
-    print("  Running on http://localhost:5001")
-    print("=" * 50)
+    print("=" * 60)
+    print("  KavachPay Mock Platform API  —  http://localhost:5001")
+    print("=" * 60)
+    print("  GET STARTED demo workers (not yet on KavachPay):")
+    print("    1. Arjun Mehta    | BLR-9910001 | Swiggy | Bangalore/Whitefield    | ph: 9700011001")
+    print("    2. Fatima Shaikh  | MUM-9920002 | Zomato | Mumbai/Andheri          | ph: 9700022002")
+    print("    3. Vikram Reddy   | HYD-9930003 | Swiggy | Hyderabad/Madhapur      | ph: 9700033003")
+    print("    4. Nisha Gupta    | DEL-9940004 | Zomato | Delhi/Lajpat Nagar      | ph: 9700044004")
+    print("    5. Rohan Deshmukh | PNE-9950005 | Swiggy | Pune/Koregaon Park      | ph: 9700055005")
+    print("=" * 60)
     app.run(debug=True, port=5001)
