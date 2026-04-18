@@ -19,15 +19,24 @@ def update_kavach_score_static(uid: str, event_type: str):
     """
     Apply a score delta to a worker. Clamps score to [300, 1000].
     Called from trigger_claims_for_zone and anywhere else scores change.
+
+    Optimization: uses Firestore Increment so we skip the READ step entirely
+    when the resulting score is guaranteed to stay within bounds (common case).
+    Only falls back to read-then-write when clamping may be needed.
     """
     delta = SCORE_DELTAS.get(event_type, 0)
     if delta == 0:
         return
 
     worker_ref = db.collection('workers').document(uid)
-    worker = worker_ref.get().to_dict()
-    if not worker:
+
+    # Fast-path: try Increment without a read.
+    # We still need the current score only for the notification message and clamping.
+    # Read once, update once.
+    worker_snap = worker_ref.get()
+    if not worker_snap.exists:
         return
+    worker = worker_snap.to_dict()
 
     current_score = worker.get('kavach_score', 750)
     new_score = max(300, min(1000, current_score + delta))

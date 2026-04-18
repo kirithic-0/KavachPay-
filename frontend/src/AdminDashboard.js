@@ -150,13 +150,19 @@ export default function AdminDashboard({ onBack }) {
             }
         };
         loadAllData();
-    }, [onBack, searchWorker, sortBy]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [onBack]);
 
-    // Refresh workers on search/sort
+    // Refresh workers ONLY when search/sort changes AFTER the initial load
+    const initialLoadRef = React.useRef(false);
     useEffect(() => {
-        // Skip on initial mount since loadAllData already fetches workers
-        if (loading || (searchWorker === '' && sortBy === 'score')) return;
-        
+        // Skip first render — loadAllData already handles workers on init
+        if (!initialLoadRef.current) {
+            initialLoadRef.current = true;
+            return;
+        }
+        if (loading) return;
+
         const refreshWorkers = async () => {
             const wk = await api.getWorkers(1, searchWorker, sortBy);
             if (wk.workers) setWorkers(wk.workers);
@@ -187,8 +193,16 @@ export default function AdminDashboard({ onBack }) {
 
     if (loading) {
         return (
-            <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#111827', alignItems: 'center', justifyContent: 'center' }}>
-                <p style={{ color: '#3B82F6', fontWeight: 700 }}>Loading Dashboard Data...</p>
+            <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#111827', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+                <div style={{
+                    width: 44, height: 44,
+                    border: '4px solid rgba(59,130,246,0.2)',
+                    borderTop: '4px solid #3B82F6',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite'
+                }} />
+                <p style={{ color: '#94A3B8', fontWeight: 600, fontSize: 14 }}>Loading Dashboard Data...</p>
+                <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
             </div>
         );
     }
@@ -303,7 +317,7 @@ export default function AdminDashboard({ onBack }) {
                 <div style={{ backgroundColor: '#0D1117', borderBottom: '1px solid #1E2530', padding: '14px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 50 }}>
                     <div>
                         <p style={{ color: 'white', fontWeight: 700, fontSize: 16 }}>{NAV_ITEMS.find(n => n.key === activeTab)?.label}</p>
-                        <p style={{ color: '#6B7280', fontSize: 11, marginTop: 2 }}>KavachPay Operations · Mar 27, 2026</p>
+                        <p style={{ color: '#6B7280', fontSize: 11, marginTop: 2 }}>KavachPay Operations · {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                     </div>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                         {overview.active_disruptions > 0 && (

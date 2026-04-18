@@ -2,12 +2,18 @@ import React, { useState } from 'react';
 
 const ZONE_WORKERS = {
     'Koramangala, Bangalore': [
-        { name: 'Ravi Kumar', id: 'SWG-2847361', active: false, started: true, deliveries: 0, score: 780 },
-        { name: 'Priya Singh', id: 'ZOM-1923847', active: true, started: true, deliveries: 4, score: 820 },
+        { name: 'Ravi Kumar', id: 'BLR-1000001', active: false, started: true, deliveries: 0, score: 820 },
         { name: 'Mohammed Arif', id: 'ZPT-3847261', active: false, started: true, deliveries: 0, score: 750 },
         { name: 'Sunita Devi', id: 'BLK-2938471', active: false, started: false, deliveries: 0, score: 710 },
         { name: 'Karthik R', id: 'SWG-1847392', active: false, started: true, deliveries: 0, score: 760 },
         { name: 'Deepa Nair', id: 'ZOM-3847192', active: true, started: true, deliveries: 2, score: 800 },
+    ],
+    'Adyar, Chennai': [
+        { name: 'Priya Singh', id: 'CHN-2000001', active: true, started: true, deliveries: 4, score: 380 },
+        { name: 'Murugan S', id: 'ZOM-1938472', active: false, started: true, deliveries: 0, score: 790 },
+        { name: 'Kavitha R', id: 'SWG-3847201', active: true, started: true, deliveries: 3, score: 815 },
+        { name: 'Senthil K', id: 'ZPT-2847193', active: false, started: true, deliveries: 0, score: 745 },
+        { name: 'Prabhakaran M', id: 'BLK-1847293', active: false, started: true, deliveries: 0, score: 765 },
     ],
     'Dharavi, Mumbai': [
         { name: 'Suresh Patil', id: 'SWG-4827361', active: false, started: true, deliveries: 0, score: 770 },
@@ -15,12 +21,6 @@ const ZONE_WORKERS = {
         { name: 'Imran Khan', id: 'ZPT-1847293', active: false, started: true, deliveries: 0, score: 740 },
         { name: 'Rekha Devi', id: 'BLK-3847102', active: false, started: false, deliveries: 0, score: 690 },
         { name: 'Vijay More', id: 'SWG-2847193', active: false, started: true, deliveries: 0, score: 755 },
-    ],
-    'Adyar, Chennai': [
-        { name: 'Murugan S', id: 'ZOM-1938472', active: false, started: true, deliveries: 0, score: 790 },
-        { name: 'Kavitha R', id: 'SWG-3847201', active: true, started: true, deliveries: 3, score: 815 },
-        { name: 'Senthil K', id: 'ZPT-2847193', active: false, started: true, deliveries: 0, score: 745 },
-        { name: 'Prabhakaran M', id: 'BLK-1847293', active: false, started: true, deliveries: 0, score: 765 },
     ],
     'Salt Lake, Kolkata': [
         { name: 'Rajesh Das', id: 'SWG-3847192', active: false, started: true, deliveries: 0, score: 760 },
@@ -88,6 +88,10 @@ function Simulator({ worker, onBack }) {
             if (!w.started) {
                 result = 'skipped';
                 reason = 'Did not tap Start My Day';
+                approved = false;
+            } else if (w.score < 500) {
+                result = 'skipped';
+                reason = `KavachScore ${w.score} below minimum 500 — Layer 5 failed`;
                 approved = false;
             } else if (w.active) {
                 result = 'skipped';

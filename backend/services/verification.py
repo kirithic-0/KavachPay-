@@ -22,25 +22,25 @@ def trigger_claims_for_zone(city: str, zone: str, code: str, severity: str,
     Called from simulate endpoint or real M4 trigger.
     Returns: number of workers notified.
     """
-    workers = db.collection('workers')\
-                .where('zone', '==', zone)\
-                .where('policy_active', '==', True)\
-                .where('is_deleted', '==', False).stream()
+    worker_docs = list(db.collection('workers')
+                .where('zone', '==', zone)
+                .where('policy_active', '==', True)
+                .where('is_deleted', '==', False).stream())
+
+    # Pre-fetch zone worker count ONCE to avoid repeated queries inside the loop
+    total_zone = len(worker_docs) or 1
 
     notified = 0
-    for w_doc in workers:
+    for w_doc in worker_docs:
         worker = w_doc.to_dict()
         uid    = worker['uid']
 
-        # Step 1 — 5-layer verification
-        layers_passed, skip_reason, orders_today = run_5_layer_check(worker, code, zone)
+        # Step 1 — 5-layer verification (pass zone_count to avoid re-query)
+        layers_passed, skip_reason, orders_today = run_5_layer_check(worker, code, zone, total_zone)
 
         # Step 2 — M2: Fraud detection (runs even on skip to audit)
-        city_risk    = CITY_RISK.get(city, 'low')
-        zone_workers = list(db.collection('workers')
-                              .where('zone', '==', zone)
-                              .where('policy_active', '==', True).stream())
-        total_zone   = len(zone_workers) or 1
+        city_risk  = CITY_RISK.get(city, 'low')
+        total_zone = total_zone  # already computed above
         # Mock inactivity for testing: assume everyone is inactive during severe disruptions
         zone_inactivity_pct = 1.0
 
@@ -141,12 +141,12 @@ def trigger_claims_for_zone(city: str, zone: str, code: str, severity: str,
     return notified
 
 
-def run_5_layer_check(worker: dict, disruption_code: str, zone: str):
+def run_5_layer_check(worker: dict, disruption_code: str, zone: str, total_zone: int = 0):
     """
     5-layer parametric verification.
+    total_zone: pre-computed zone worker count to avoid a redundant Firestore query.
     Returns: (layers_passed: int, skip_reason: str|None, orders_today_count: int)
     """
-    uid         = worker['uid']
     employee_id = worker.get('employee_id', '')
 
     # --- Layer 1: Work Intent ---
@@ -173,14 +173,13 @@ def run_5_layer_check(worker: dict, disruption_code: str, zone: str):
         return 1, 'Layer 2 failed: no verified disruption found for city', 0
 
     # --- Layer 3: Zone Correlation (≥60 % inactive) ---
-    zone_workers = list(
-        db.collection('workers')
-          .where('zone', '==', zone)
-          .where('policy_active', '==', True)
-          .where('is_deleted', '==', False)
-          .stream()
-    )
-    total_zone = len(zone_workers)
+    # Use pre-computed total_zone count if provided; avoids a redundant collection scan
+    if total_zone == 0:
+        total_zone = db.collection('workers')\
+                       .where('zone', '==', zone)\
+                       .where('policy_active', '==', True)\
+                       .where('is_deleted', '==', False)\
+                       .count().get()[0][0].value
     if total_zone == 0:
         return 2, 'Layer 3 failed: no workers found in zone', 0
 

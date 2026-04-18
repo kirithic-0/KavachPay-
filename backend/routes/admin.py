@@ -171,24 +171,29 @@ def admin_workers():
             if search not in searchable:
                 continue
         
-        claims = db.collection('workers').document(uid).collection('claims').stream()
-        w['claims_count'] = len(list(claims))
+        # Use count() aggregate to avoid streaming all claim docs
+        try:
+            count_result = db.collection('workers').document(uid)\
+                             .collection('claims').count().get()
+            claims_count = count_result[0][0].value
+        except Exception:
+            claims_count = len(list(db.collection('workers').document(uid).collection('claims').stream()))
         
         payouts = db.collection('payments')\
                     .where('uid', '==', uid)\
                     .where('type', '==', 'payout').stream()
         p_list = [p.to_dict() for p in payouts]
-        w['last_payout'] = 0
+        last_payout = 0
         if p_list:
-            p_list.sort(key=lambda x: x.get('created_at'), reverse=True)
-            w['last_payout'] = p_list[0].get('amount', 0)
+            p_list.sort(key=lambda x: x.get('created_at') or '', reverse=True)
+            last_payout = p_list[0].get('amount', 0)
         
         if w.get('policy_active'):
-            w['status'] = 'active'
+            status = 'active'
         elif w.get('policy_paused'):
-            w['status'] = 'paused'
+            status = 'paused'
         else:
-            w['status'] = 'review'
+            status = 'review'
             
         all_workers.append({
             'id': w.get('employee_id'),
@@ -197,29 +202,28 @@ def admin_workers():
             'city': w.get('city'),
             'platform': w.get('platform'),
             'score': w.get('kavach_score', 750),
-            'status': w['status'],
+            'status': status,
             'premium': w.get('premium', 0),
-            'last_payout': w['last_payout'],
-            'claims_count': w['claims_count']
+            'last_payout': last_payout,
+            'claims_count': claims_count,
         })
 
     if sort_field == 'score':
         all_workers.sort(key=lambda x: x['score'], reverse=True)
     elif sort_field == 'name':
-        all_workers.sort(key=lambda x: x['name'])
+        all_workers.sort(key=lambda x: (x['name'] or ''))
     elif sort_field == 'claims':
         all_workers.sort(key=lambda x: x['claims_count'], reverse=True)
 
     total = len(all_workers)
-    start = (page - 1) * 20
-    end = start + 20
-    paginated = all_workers[start:end]
-    
+
+    # Return ALL workers (no page cap) so the workers tab count matches overview
     return jsonify({
-        'workers': paginated,
+        'workers': all_workers,
         'total': total,
-        'page': page
+        'page': page,
     })
+
 
 @admin_bp.route('/disruptions', methods=['GET'])
 @require_admin

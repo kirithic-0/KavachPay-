@@ -386,10 +386,14 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
             try {
                 console.log("Dashboard: Loading data for worker ", worker.uid);
                 
-                // Fetch fresh worker profile to wire everything to firebase
-                const freshWorker = await api.getWorker(worker.uid);
-                if (freshWorker && !freshWorker.error) {
-                    setWorker(freshWorker);
+                // Only re-fetch the worker profile if we don't already have complete data.
+                // The login/signup flow already returns the full worker object, so avoid
+                // the extra Firestore read unless it's genuinely missing.
+                if (!worker.name || !worker.platform) {
+                    const freshWorker = await api.getWorker(worker.uid);
+                    if (freshWorker && !freshWorker.error) {
+                        setWorker(freshWorker);
+                    }
                 }
 
                 const income = await api.getWorkerWeeklyIncome(worker.uid);
@@ -531,7 +535,19 @@ export default function Dashboard({ worker, setWorker, onLogout, lang: propLang,
         onLogout();
     };
 
-    if (loading || !worker) return <div style={{ minHeight: '100vh', backgroundColor: lC.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p>Synchronizing with Kavach backend...</p></div>;
+    if (loading || !worker) return (
+        <div style={{ minHeight: '100vh', background: 'linear-gradient(170deg, #08101F 0%, #0D1829 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+            <div style={{
+                width: 48, height: 48,
+                border: '4px solid rgba(255,255,255,0.1)',
+                borderTop: '4px solid #3B82F6',
+                borderRadius: '50%',
+                animation: 'spin 0.8s linear infinite'
+            }} />
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontWeight: 600, fontSize: 14, fontFamily: 'Inter, sans-serif' }}>Synchronizing with Kavach backend...</p>
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+        </div>
+    );
 
     if (page === 'policy') return <Policy worker={{ ...worker, zone }} onBack={() => setPage('dashboard')} lang={lang} setLang={setLang} />;
     if (page === 'claims') return <Claims worker={{ ...worker, zone }} onBack={() => setPage('dashboard')} lang={lang} setLang={setLang} />;

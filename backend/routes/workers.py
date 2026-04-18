@@ -110,10 +110,18 @@ def get_worker_stats(id):
         return jsonify({"error": "Worker not found"}), 404
 
     worker = worker_doc.to_dict()
-    claims = list(db.collection('workers').document(id).collection('claims').stream())
-    
+
+    # Use aggregate count() instead of streaming all claim docs — saves N document reads
+    try:
+        count_result = db.collection('workers').document(id)\
+                         .collection('claims').count().get()
+        claims_count = count_result[0][0].value
+    except Exception:
+        # Fallback for older SDK versions that don't support count()
+        claims_count = len(list(db.collection('workers').document(id).collection('claims').stream()))
+
     return jsonify({
-        "claims_count": len(claims),
+        "claims_count": claims_count,
         "policy_status": "active" if worker.get('policy_active') else "paused",
         "avg_score": worker.get('kavach_score', 750)
     }), 200
