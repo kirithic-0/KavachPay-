@@ -1,6 +1,6 @@
 # ── Secrets — NEVER commit these ──────────────────────────
 .env
-firebase-credentials.json
+*firebase-credentials*.json
 
 # ── Python ────────────────────────────────────────────────
 __pycache__/
@@ -13,6 +13,8 @@ __pycache__/
 .venv/
 venv/
 env/
+env
+.env
 
 # ── OS files ──────────────────────────────────────────────
 .DS_Store

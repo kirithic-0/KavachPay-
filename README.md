@@ -45,6 +45,7 @@ VIDEO PHASE 2 : https://youtu.be/9fprTyhbpL8
 - [KavachScore — Why NBFCs & Lenders Trust It](#kavachscore--why-nbfcs--lenders-trust-it)
 - [Expansion Potential](#expansion-potential)
 - [Core Product Promise](#core-product-promise)
+- [Local Setup & Execution](#local-setup--execution)
 - [Tech Stack](#tech-stack)
 - [Application Features](#application-features)
 - [Worker Discussion Forum](#worker-discussion-forum)
@@ -194,6 +195,35 @@ The KavachScore framework could also extend to hyperlocal service workers — pl
 | **Zero CIBIL** | Loan eligibility based on KavachScore — not credit history. |
 | **Zero GPS Dependency** | Verification uses delivery order history from Swiggy/Zomato — not GPS location tracking. |
 | **Zero Lock-in** | Cancel or pause anytime. No long-term contract or exit penalty. |
+
+---
+
+## Local Setup & Execution
+
+You can run KavachPay locally on Windows using the provided automated scripts.
+
+### Prerequisites
+- **Python 3.8+**
+- **Node.js (v16+)** & **npm**
+
+### Step 1: Initial Setup
+Double-click [**`setup.bat`**](file:///d:/code/ANTIGRAVITY/KavachPay-/setup.bat) in the root directory. This script will:
+- Verify your Python and Node.js installations.
+- Create a Python virtual environment (`venv`).
+- Install all backend dependencies (`pip install`).
+- Install all frontend dependencies (`npm install`).
+- Create default `.env` files from examples.
+
+### Step 2: Configure Firebase
+Place your service account key (`firebase-credentials.json`) in the [**`backend/`**](file:///d:/code/ANTIGRAVITY/KavachPay-/backend) folder.
+
+### Step 3: Launch
+Double-click [**`start.bat`**](file:///d:/code/ANTIGRAVITY/KavachPay-/start.bat). This will launch three separate terminal windows:
+1.  **Flask Backend** (Port 5000)
+2.  **Mock Platform API** (Port 5001)
+3.  **React Frontend** (Port 3000)
+
+Your browser will automatically open to `http://localhost:3000`.
 
 ---
 
